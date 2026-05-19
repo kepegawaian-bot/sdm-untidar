@@ -634,7 +634,7 @@ function PanduanEditor({ services, settings }: { services: any[], settings: any 
                         {saving && uploadProgress !== null ? (
                           <>
                             <div className="w-4 h-4 border-2 border-blue-300 border-t-blue-700 rounded-full animate-spin" />
-                            Sedang mengunggah...
+                            Mengunggah {uploadProgress}%
                           </>
                         ) : (
                           <>
@@ -663,27 +663,51 @@ function PanduanEditor({ services, settings }: { services: any[], settings: any 
                                setUploadProgress(null);
                                return;
                              }
-                             console.log("Starting upload for:", file.name, "Size:", file.size);
-                              try {
-                                const storageRef = ref(storage, `sops/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.\-_]/g, '')}`);
-                                
-                                console.log("Starting upload with buffer...");
-                                const fileBuffer = await file.arrayBuffer();
-                                const uploadPromise = uploadBytes(storageRef, fileBuffer, { contentType: file.type });
-                                
-                                const snapshot = await Promise.race([
-                                  uploadPromise,
-                                  new Promise<any>((_, reject) => setTimeout(() => reject(new Error("Timeout: Unggah file terlalu lama (batas 5 menit).")), 300000))
-                                ]);
-                                
-                                const downloadUrl = await getDownloadURL(snapshot.ref);
-                                
-                                setDetail(prev => ({...prev, sopUrl: downloadUrl}));
-                                alert("Berhasil mengunggah dokumen!");
-                              } catch (error: any) {
-                                console.error("Detailed upload error:", error);
-                                alert(`Gagal mengunggah file. \n\nSaran:\n1. Perkecil ukuran file (disarankan < 1MB).\n2. Gunakan jaringan internet yang berbeda.\n3. Gunakan 'Link URL' (Upload ke Google Drive lalu tempel linknya di kotak bawah).\n\nError: ${error.message}`);
-                              } finally {
+                             
+                             try {
+                               const storageRef = ref(storage, `sops/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.\-_]/g, '')}`);
+                               
+                               // Use uploadBytesResumable again but with much better state tracking and a warning system
+                               const uploadTask = uploadBytesResumable(storageRef, file, { contentType: file.type });
+                               
+                               const downloadUrl = await Promise.race([
+                                 new Promise<string>((resolve, reject) => {
+                                   uploadTask.on('state_changed', 
+                                     (snapshot) => {
+                                       const progress = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
+                                       setUploadProgress(progress);
+                                       console.log(`Upload progress: ${progress}%`);
+                                     }, 
+                                     (error) => {
+                                       console.error("Firebase Storage Error:", error);
+                                       reject(error);
+                                     },
+                                     async () => {
+                                       try {
+                                         const url = await getDownloadURL(uploadTask.snapshot.ref);
+                                         resolve(url);
+                                       } catch (e) {
+                                         reject(e);
+                                       }
+                                     }
+                                   );
+                                 }),
+                                 new Promise<string>((_, reject) => setTimeout(() => {
+                                   uploadTask.cancel();
+                                   reject(new Error("Timeout (3 menit): Koneksi Anda/VPN mungkin memblokir akses ke server Firebase."));
+                                 }, 180000))
+                               ]);
+                               
+                               setDetail(prev => ({...prev, sopUrl: downloadUrl}));
+                               alert("Berhasil mengunggah dokumen!");
+                             } catch (error: any) {
+                               console.error("Detailed upload error:", error);
+                               let msg = error.message;
+                               if (error.code === 'storage/canceled' || msg.includes('Timeout')) {
+                                  msg = "Koneksi terputus atau VPN memblokir akses. \n\nSolusi:\n1. Matikan VPN sementara.\n2. Gunakan Jaringan lain (WiFi/Hotspot).\n3. Gunakan Link URL Google Drive saja.";
+                               }
+                               alert("Gagal mengunggah: " + msg);
+                             } finally {
                                setSaving(false);
                                setUploadProgress(null);
                                if (e.target) e.target.value = '';
@@ -843,7 +867,7 @@ function PanduanEditor({ services, settings }: { services: any[], settings: any 
              {saving ? (
                 <div className="flex items-center gap-2">
                   <div className="w-6 h-6 border-4 border-white/40 border-t-white rounded-full animate-spin"></div>
-                  {uploadProgress !== null ? 'SEDANG MENGUNGGAH DOKUMEN...' : 'MEMPROSES & MENYIMPAN...'}
+                  {uploadProgress !== null ? `SEDANG MENGUNGGAH DOKUMEN (${uploadProgress}%)...` : 'MEMPROSES & MENYIMPAN...'}
                 </div>
              ) : (
                <>
