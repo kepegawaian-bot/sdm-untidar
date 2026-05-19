@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { auth, provider, db, storage, OperationType, handleFirestoreError } from './lib/firebase';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ref, uploadBytes, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { cn } from './lib/utils';
 import { signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
 import { doc, getDoc, setDoc, onSnapshot, serverTimestamp, collection, query, orderBy } from 'firebase/firestore';
@@ -635,8 +635,8 @@ function PanduanEditor({ services, settings }: { services: any[], settings: any 
                             const file = e.target.files?.[0];
                             if (!file) return;
                             
-                            if (file.size > 5 * 1024 * 1024) {
-                              alert("Ukuran file melebihi batas 5MB. Harap kompres PDF Anda terlebih dahulu.");
+                            if (file.size > 10 * 1024 * 1024) {
+                              alert("Ukuran file melebihi batas 10MB. Harap kompres PDF Anda terlebih dahulu.");
                               e.target.value = '';
                               return;
                             }
@@ -647,21 +647,38 @@ function PanduanEditor({ services, settings }: { services: any[], settings: any 
                               setSaving(false);
                               return;
                             }
-                            console.log("Starting upload to storage for file:", file.name);
+                            console.log("Starting upload to storage for file:", file.name, "Size:", file.size);
+                            setSaving(true);
                             try {
                               const storageRef = ref(storage, `sops/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.\-_]/g, '')}`);
-                              console.log("Upload reference:", storageRef.fullPath);
-                              const snapshot = await uploadBytes(storageRef, file);
-                              console.log("Upload snapshot:", snapshot);
-                              const downloadUrl = await getDownloadURL(snapshot.ref);
+                              const uploadTask = uploadBytesResumable(storageRef, file);
+                              
+                              const downloadUrl = await new Promise<string>((resolve, reject) => {
+                                uploadTask.on('state_changed', 
+                                  (snapshot) => {
+                                    const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                                    console.log('Upload is ' + progress + '% done');
+                                  }, 
+                                  reject,
+                                  async () => {
+                                    try {
+                                      const url = await getDownloadURL(uploadTask.snapshot.ref);
+                                      resolve(url);
+                                    } catch (e) {
+                                      reject(e);
+                                    }
+                                  }
+                                );
+                              });
                               
                               setDetail({...detail, sopUrl: downloadUrl});
                               alert("Berhasil mengunggah dokumen!");
                             } catch (error: any) {
-                              console.error("Upload error:", error);
+                              console.error("Upload error details:", error);
                               alert("Gagal mengunggah file ke server. Error: " + error.message);
                             } finally {
                               setSaving(false);
+                              e.target.value = '';
                             }
                           }}
                         />
