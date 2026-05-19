@@ -34,6 +34,9 @@ service cloud.firestore {
              (!data.keys().hasAny(['recentDocuments']) || data.recentDocuments is list) &&
              (!data.keys().hasAny(['applications']) || data.applications is list) &&
              (!data.keys().hasAny(['services']) || data.services is list) &&
+             (!data.keys().hasAny(['profile']) || data.profile is map) &&
+             (!data.keys().hasAny(['skmSettings']) || data.skmSettings is map) &&
+             (!data.keys().hasAny(['bantuan']) || data.bantuan is map) &&
              data.updatedAt == request.time;
     }
 
@@ -84,7 +87,7 @@ service cloud.firestore {
     match /site_settings/main {
       allow read: if true;
       allow create: if isAdmin() && isValidSiteSettings(incoming());
-      allow update: if isAdmin() && isValidSiteSettings(incoming()) && incoming().diff(existing()).affectedKeys().hasAny(['header', 'hero', 'footer', 'announcements', 'recentDocuments', 'applications', 'services', 'updatedAt']);
+      allow update: if isAdmin() && isValidSiteSettings(incoming()) && incoming().diff(existing()).affectedKeys().hasAny(['header', 'hero', 'footer', 'announcements', 'recentDocuments', 'applications', 'services', 'profile', 'skmSettings', 'bantuan', 'updatedAt']);
       allow delete: if isAdmin();
     }
 

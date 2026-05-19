@@ -5,7 +5,7 @@ import { cn } from './lib/utils';
 import { signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
 import { doc, getDoc, setDoc, onSnapshot, serverTimestamp, collection, query, orderBy } from 'firebase/firestore';
 import { PORTAL_CONTENT } from './data/portalData';
-import { Plus, Trash, ArrowUp, ArrowDown, ExternalLink, GripVertical, Scale, BookOpen, FileSignature, Settings, Users, Search, ArrowLeft, Save, CheckCircle2, Activity, TrendingUp, FileText, LogOut } from 'lucide-react';
+import { Plus, Trash, ArrowUp, ArrowDown, ExternalLink, GripVertical, Scale, BookOpen, FileSignature, Settings, Users, Search, ArrowLeft, Save, CheckCircle2, Activity, TrendingUp, FileText, LogOut, Lock as LockIcon } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -1055,12 +1055,7 @@ export default function AdminDashboard({ onExit }: { onExit?: () => void }) {
                 data.skmSettings = { ...PORTAL_CONTENT.skmSettings, ...data.skmSettings };
               }
               
-              // If services exists but only has 2 items, it's likely the old default. Let's fix it.
-              const isOldServices = data.services && data.services.length === 2 && (data.services[0].category === "Pengembangan Karir & Mutasi" || data.services[0].category === "Layanan Manajemen Karier");
-              if (!data.services || (data.services.length < 5 && isOldServices)) {
-                data.services = JSON.parse(JSON.stringify(PORTAL_CONTENT.services));
-              }
-              
+              // If services exists, just use it.
               setSettings(data);
               setIsAdmin(true);
             } else {
@@ -1096,28 +1091,39 @@ export default function AdminDashboard({ onExit }: { onExit?: () => void }) {
     return () => unsub();
   }, []);
 
-  const login = async (authProvider: any = provider) => {
+  const login = async (authProvider: any = provider, mode: 'popup' | 'redirect' = 'popup') => {
     try {
-      await signInWithPopup(auth, authProvider);
+      console.log(`Attempting login with ${mode}...`);
+      if (mode === 'popup') {
+        const result = await signInWithPopup(auth, authProvider);
+        console.log('Login success (popup):', result.user.email);
+      } else {
+        const { signInWithRedirect: fv_signInWithRedirect } = await import('firebase/auth');
+        await fv_signInWithRedirect(auth, authProvider);
+        console.log('Redirecting for login...');
+      }
     } catch(e: any) {
       console.error('Login Error:', e);
-      if (e.code === 'auth/unauthorized-domain') {
-        const currentDomain = window.location.hostname;
-        const sharedDomain = currentDomain.replace('ais-dev-', 'ais-pre-');
-        const devDomain = currentDomain.replace('ais-pre-', 'ais-dev-');
-        
-        alert(
-          "Error: Firebase Authorized Domains\n\n" +
-          "Domain ini belum diizinkan di Firebase Console.\n\n" +
-          "Silakan tambahkan domain berikut ke Whitelist di Firebase Console (Authentication > Settings > Authorized domains):\n\n" +
-          "- " + devDomain + "\n" +
-          "- " + sharedDomain + "\n\n" +
-          "Pastikan juga 'localhost' sudah terdaftar jika Anda melakukan testing lokal."
-        );
-      } else {
-        alert("Gagal login: " + (e.message || "Terjadi kesalahan yang tidak diketahui."));
-      }
+      handleLoginError(e);
     }
+  };
+
+  const handleLoginError = (e: any) => {
+    if (e.code === 'auth/unauthorized-domain') {
+        const currentDomain = window.location.hostname;
+        alert(
+          "Domain Belum Terdaftar di Firebase!\n\n" +
+          "Silakan tambahkan domain berikut ke 'Authorized Domains' di Firebase Console:\n" +
+          "- " + currentDomain + "\n\n" +
+          "Buka Firebase Console > Authentication > Settings > Authorized Domains."
+        );
+      } else if (e.code === 'auth/popup-blocked') {
+        alert("Popup diblokir. Silakan gunakan tombol 'Metode Redirect' atau buka aplikasi di Tab Baru.");
+      } else if (e.code === 'auth/network-request-failed') {
+        alert("Koneksi gagal. Pastikan Firebase sudah aktif & Anda terhubung internet.");
+      } else {
+        alert("Gagal login: " + (e.message || "Terjadi kesalahan."));
+      }
   };
 
   const handleSave = async () => {
@@ -1128,11 +1134,26 @@ export default function AdminDashboard({ onExit }: { onExit?: () => void }) {
         ...settings,
         updatedAt: serverTimestamp()
       });
-      alert('Tersimpan!');
-    } catch(e) {
-      handleFirestoreError(e, OperationType.UPDATE, 'site_settings/main');
+      alert('Berhasil: Semua perubahan telah tersimpan ke database.');
+    } catch(e: any) {
+      console.error('Save Error:', e);
+      let errorMsg = "Gagal menyimpan perubahan.";
+      
+      if (e.message && e.message.includes("permission-denied")) {
+        errorMsg = "Akses Ditolak: Pastikan domain dashboard ini sudah didaftarkan di Firebase Console (Authorized Domains).";
+      } else if (e.message) {
+        try {
+          const parsed = JSON.parse(e.message);
+          errorMsg = `Gagal simpan: ${parsed.error}`;
+        } catch {
+          errorMsg = `Gagal simpan: ${e.message}`;
+        }
+      }
+      
+      alert(errorMsg);
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   };
 
   const updateSettingNode = (node: string, field: string, value: any) => {
@@ -1220,7 +1241,7 @@ export default function AdminDashboard({ onExit }: { onExit?: () => void }) {
 
     const reader = new FileReader();
     reader.onload = (event) => {
-        const img = new Image();
+        const img = new window.Image();
         img.onload = () => {
             const canvas = document.createElement('canvas');
             const MAX_WIDTH = 400; // Allow a bit larger for better quality, 400px is typical
@@ -1260,19 +1281,30 @@ export default function AdminDashboard({ onExit }: { onExit?: () => void }) {
       <div className="flex flex-col items-center justify-center min-h-[60vh] p-6">
         <div className="bg-white p-8 rounded-2xl shadow-xl border border-slate-200 w-full max-w-md text-center">
           <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <ArrowDown className="w-8 h-8 text-amber-600 rotate-180" />
+            <LockIcon className="w-8 h-8 text-amber-600" />
           </div>
           <h2 className="text-2xl font-bold text-slate-900 mb-2">Admin Login</h2>
-          <p className="text-slate-500 mb-8 text-sm">Masuk dengan akun Google untuk mengelola konten portal kepegawaian.</p>
-          <button 
-            onClick={() => login(provider)} 
-            className="w-full flex items-center justify-center gap-3 px-6 py-3 bg-white border-2 border-slate-200 rounded-xl font-bold text-slate-700 hover:bg-slate-50 hover:border-amber-400 transition-all shadow-sm mb-4"
-          >
-            <img src="https://www.google.com/favicon.ico" className="w-5 h-5" alt="Google" />
-            Masuk dengan Google
-          </button>
+          <p className="text-slate-500 mb-8 text-sm">Masuk dengan akun Google untuk mengelola konten portal.</p>
+          
+          <div className="space-y-4">
+            <button 
+              onClick={() => login(provider, 'popup')} 
+              className="w-full flex items-center justify-center gap-3 px-6 py-3 bg-white border-2 border-slate-200 rounded-xl font-bold text-slate-700 hover:bg-slate-50 hover:border-amber-400 transition-all shadow-sm"
+            >
+              <img src="https://www.google.com/favicon.ico" className="w-5 h-5" alt="Google" />
+              Masuk dengan Google
+            </button>
+            
+            <button 
+              onClick={() => login(provider, 'redirect')} 
+              className="w-full text-xs font-bold text-slate-400 hover:text-slate-600 transition-colors py-2 border border-dashed border-slate-200 rounded-lg"
+            >
+              Gunakan Metode Redirect (Jika Popup Gagal)
+            </button>
+          </div>
+
           {onExit && (
-            <button onClick={onExit} className="text-sm font-semibold text-slate-500 hover:text-slate-800 transition-colors">
+            <button onClick={onExit} className="mt-8 text-sm font-semibold text-slate-400 hover:text-slate-800 transition-colors">
               Kembali ke Beranda
             </button>
           )}

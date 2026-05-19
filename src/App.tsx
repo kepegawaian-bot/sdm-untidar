@@ -42,7 +42,10 @@ import {
   CheckCircle2,
   Settings,
   Scale,
-  Lock
+  Lock,
+  Activity,
+  TrendingUp,
+  Image as LucideImage
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import Markdown from 'react-markdown';
@@ -220,12 +223,12 @@ export default function App() {
 
   const navItems = [
     { id: 'beranda', label: 'Beranda', icon: Home },
-    { id: 'layanan', label: 'Layanan SDM', icon: AppWindow },
     { 
         id: 'profil', 
         label: 'Profil', 
         icon: FileText
     },
+    { id: 'layanan', label: 'Layanan SDM', icon: AppWindow },
     { id: 'pengumuman', label: 'Informasi', icon: Megaphone },
     { id: 'bantuan', label: 'Bantuan', icon: LifeBuoy },
   ];
@@ -351,7 +354,7 @@ export default function App() {
 
       {/* Main Content */}
       <main className="flex-1 mt-0">
-        {activeTab === 'beranda' && <BerandaView setActiveTab={setActiveTab} content={activeContent} />}
+        {activeTab === 'beranda' && <BerandaView setActiveTab={setActiveTab} content={activeContent} visitCount={visitCount} />}
         {activeTab === 'layanan' && <LayananView content={activeContent} onOpenSKM={() => setIsSKMOpen(true)} />}
         {activeTab === 'profil' && <ProfilView content={activeContent} />}
         {activeTab === 'pengumuman' && <PengumumanView content={activeContent} />}
@@ -477,11 +480,19 @@ function BeholdWidgetWrapper({ html }: { html: string }) {
   return <div ref={containerRef} className="w-full h-full min-h-[300px] flex items-center justify-center bg-slate-50 rounded-2xl overflow-hidden" />;
 }
 
-function BerandaView({ setActiveTab, content }: { setActiveTab: (tab: Tab) => void, content: any }) {
+function BerandaView({ setActiveTab, content, visitCount }: { setActiveTab: (tab: Tab) => void, content: any, visitCount: number | null }) {
   if (!content) return null;
+  const [searchQuery, setSearchQuery] = useState('');
   const applications = content.applications || [];
   
-  const groupedApps = applications.reduce((acc: any, app: any) => {
+  const filteredApps = searchQuery.trim() === '' 
+    ? applications 
+    : applications.filter((app: any) => 
+        app.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+        (app.category && app.category.toLowerCase().includes(searchQuery.toLowerCase()))
+      );
+
+  const groupedApps = filteredApps.reduce((acc: any, app: any) => {
     const defaultCat = "Aplikasi & Layanan";
     const cat = app.category || defaultCat;
     if (!acc[cat]) {
@@ -521,14 +532,31 @@ function BerandaView({ setActiveTab, content }: { setActiveTab: (tab: Tab) => vo
               <Search className="w-8 h-8 text-slate-400 ml-4 hidden sm:block" />
               <input 
                 type="text" 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder={content.hero.searchPlaceholder}
                 className="w-full bg-transparent border-none px-4 py-4 md:py-5 text-slate-800 text-lg outline-none placeholder-slate-400 focus:ring-0"
               />
+              {searchQuery && (
+                <button 
+                  onClick={() => setSearchQuery('')}
+                  className="p-2 mr-2 hover:bg-slate-100 rounded-full transition-colors"
+                >
+                  <X className="w-5 h-5 text-slate-400" />
+                </button>
+              )}
               <button 
-                onClick={() => setActiveTab('layanan')}
+                onClick={() => {
+                  if (searchQuery.trim() !== '') {
+                    const el = document.getElementById('applications-section');
+                    if (el) el.scrollIntoView({ behavior: 'smooth' });
+                  } else {
+                    setActiveTab('layanan');
+                  }
+                }}
                 className="bg-amber-500 hover:bg-amber-400 text-slate-900 font-bold px-8 py-4 md:py-5 rounded-xl transition-colors flex items-center gap-2 whitespace-nowrap"
               >
-                <span>Cari</span>
+                <span>{searchQuery.trim() !== '' ? 'Cari' : 'Layanan'}</span>
                 <ArrowRight className="w-5 h-5 hidden sm:block" />
               </button>
             </div>
@@ -537,46 +565,86 @@ function BerandaView({ setActiveTab, content }: { setActiveTab: (tab: Tab) => vo
       </section>
 
       {/* Main Content Area */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-20 relative z-20 space-y-20 mb-20">
+      <div id="applications-section" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12 relative z-20 space-y-20 mb-20">
         
-        {/* Dynamic App Groups */}
-        {categories.map((category, idx) => (
-          <div key={idx} className="bg-white pt-8">
-            <div className="flex items-center gap-3 mb-8 border-b border-slate-200 pb-4 relative">
-              <div className="absolute bottom-[-1px] left-0 w-24 h-[3px] bg-red-600 rounded-full"></div>
-              <Link className="w-6 h-6 md:w-8 md:h-8 text-slate-800" />
-              <h2 className="text-xl md:text-3xl font-medium text-slate-800">{category}</h2>
-            </div>
+        {/* Quick Stats Section */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8">
+          {[
+            { label: 'Aplikasi Terpadu', value: applications.length, icon: AppWindow, color: 'text-blue-500', bg: 'bg-blue-50' },
+            { label: 'Layanan Pengguna', value: '45+', icon: Users, color: 'text-amber-500', bg: 'bg-amber-50' },
+            { label: 'Dokumen & Panduan', value: '120+', icon: FileText, color: 'text-emerald-500', bg: 'bg-emerald-50' },
+            { label: 'Akses Publik', value: visitCount ? `${(visitCount / 1000).toFixed(1)}k+` : '10k+', icon: Activity, color: 'text-rose-500', bg: 'bg-rose-50' }
+          ].map((stat, i) => (
+            <motion.div 
+              key={i}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.1 }}
+              className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col items-center text-center group hover:border-amber-200 transition-all"
+            >
+              <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform", stat.bg, stat.color)}>
+                <stat.icon className="w-7 h-7" />
+              </div>
+              <div className="text-2xl font-black text-slate-800 tracking-tighter">{stat.value}</div>
+              <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">{stat.label}</div>
+            </motion.div>
+          ))}
+        </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-8 md:gap-12 py-4">
-              {groupedApps[category].map((app: any, i: number) => (
-                <motion.a 
-                  key={i}
-                  href={app.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  whileHover={{ y: -6, scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  initial={{ opacity: 0, y: 15 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ type: "spring", stiffness: 400, damping: 25, delay: i * 0.05 }}
-                  className="group block relative flex flex-col items-center justify-center p-2 text-center mix-blend-multiply opacity-90 hover:opacity-100 transition-all duration-300 w-full hover:drop-shadow-sm overflow-hidden aspect-[4/2]"
-                >
-                  {app.imageUrl ? (
-                     <img src={app.imageUrl} alt={app.title} className="w-full h-full object-contain mix-blend-darken scale-105 group-hover:scale-110 transition-transform duration-500" />
-                  ) : (
-                     <div className="flex flex-col items-center justify-center w-full h-full bg-slate-50/50 rounded-xl p-3 border border-slate-100/50 hover:bg-slate-50 transition-colors">
-                       <AppWindow className="w-6 h-6 md:w-8 md:h-8 text-slate-400 group-hover:text-amber-500 transition-colors mb-2" />
-                       <h4 className="text-[10px] sm:text-xs font-bold text-slate-600 leading-tight line-clamp-2 uppercase">
-                         {app.title}
-                       </h4>
-                     </div>
-                  )}
-                </motion.a>
-              ))}
+        {/* Dynamic App Groups */}
+        {categories.length > 0 ? (
+          categories.map((category, idx) => (
+            <div key={idx} className="bg-white pt-8">
+              <div className="flex items-center gap-3 mb-8 border-b border-slate-200 pb-4 relative">
+                <div className="absolute bottom-[-1px] left-0 w-24 h-[3px] bg-red-600 rounded-full"></div>
+                <Link className="w-6 h-6 md:w-8 md:h-8 text-slate-800" />
+                <h2 className="text-xl md:text-3xl font-medium text-slate-800">{category}</h2>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-8 md:gap-12 py-4">
+                {groupedApps[category].map((app: any, i: number) => (
+                  <motion.a 
+                    key={i}
+                    href={app.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    whileHover={{ y: -6, scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 25, delay: i * 0.05 }}
+                    className="group block relative flex flex-col items-center justify-center p-2 text-center mix-blend-multiply opacity-90 hover:opacity-100 transition-all duration-300 w-full hover:drop-shadow-sm overflow-hidden aspect-[4/2]"
+                  >
+                    {app.imageUrl ? (
+                       <img src={app.imageUrl} alt={app.title} className="w-full h-full object-contain mix-blend-darken scale-105 group-hover:scale-110 transition-transform duration-500" />
+                    ) : (
+                       <div className="flex flex-col items-center justify-center w-full h-full bg-slate-50/50 rounded-xl p-3 border border-slate-100/50 hover:bg-slate-50 transition-colors">
+                         <AppWindow className="w-6 h-6 md:w-8 md:h-8 text-slate-400 group-hover:text-amber-500 transition-colors mb-2" />
+                         <h4 className="text-[10px] sm:text-xs font-bold text-slate-600 leading-tight line-clamp-2 uppercase">
+                           {app.title}
+                         </h4>
+                       </div>
+                    )}
+                  </motion.a>
+                ))}
+              </div>
             </div>
+          ))
+        ) : (
+          <div className="text-center py-20 bg-slate-50 rounded-[3rem] border-2 border-dashed border-slate-200">
+             <div className="w-20 h-20 bg-slate-200 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Search className="w-10 h-10 text-slate-400" />
+             </div>
+             <h3 className="text-2xl font-bold text-slate-700">Tidak ada hasil ditemukan</h3>
+             <p className="text-slate-500 mt-2">Coba kata kunci lain untuk mencari layanan atau aplikasi</p>
+             <button 
+               onClick={() => setSearchQuery('')}
+               className="mt-6 px-6 py-3 bg-amber-500 text-slate-900 font-bold rounded-xl hover:bg-amber-400 transition-colors"
+             >
+               Reset Pencarian
+             </button>
           </div>
-        ))}
+        )}
 
         {/* Media Sosial & Publikasi */}
         <div className="bg-white p-6 md:p-8 rounded-[2rem] shadow-sm border border-slate-200">
@@ -1352,27 +1420,64 @@ function LayananView({ content, onOpenSKM }: { content: any, onOpenSKM: () => vo
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 lg:py-24 animate-in fade-in">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 mb-12">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 mb-16">
         <div className="max-w-2xl text-left">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-black mb-4 border border-blue-100">
-            <AppWindow className="w-3 h-3" />
-            PORTAL LAYANAN SDM
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-slate-900 text-white text-[10px] font-black uppercase tracking-[0.2em] mb-4 shadow-xl shadow-slate-200">
+            <AppWindow className="w-3 h-3 text-amber-500" />
+            Katalog Layanan Digital
           </div>
-          <h2 className="text-4xl md:text-5xl font-black text-slate-900 tracking-tighter mb-4 first-letter:uppercase">Layanan Terintegrasi</h2>
-          <p className="text-slate-500 text-lg font-medium leading-relaxed">Akses cepat ke berbagai layanan administrasi, karier, dan kesejahteraan SDM Universitas Tidar.</p>
+          <h2 className="text-4xl md:text-5xl lg:text-6xl font-black text-slate-900 tracking-tighter mb-4 first-letter:uppercase">Layanan <span className="text-amber-500">Terintegrasi</span></h2>
+          <div className="w-20 h-2 bg-slate-900 rounded-full mb-6" />
+          <p className="text-slate-500 text-lg font-medium leading-relaxed">Pusat akses cepat berbagai layanan administrasi, karier, dan kesejahteraan SDM Universitas Tidar yang transparan dan akuntabel.</p>
         </div>
         
         <div className="relative w-full md:w-96 group">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
+          <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-amber-600 transition-colors" />
           <input 
             type="text" 
             placeholder="Cari jenis layanan..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-12 pr-4 py-4 bg-white border border-slate-200 rounded-[1.5rem] focus:ring-8 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all shadow-sm group-hover:border-slate-300"
+            className="w-full pl-14 pr-6 py-5 bg-white border border-slate-200 rounded-3xl focus:ring-8 focus:ring-amber-500/5 focus:border-amber-500 outline-none transition-all shadow-xl shadow-slate-200/50 group-hover:border-slate-300 font-medium"
           />
         </div>
       </div>
+
+      {/* Featured Services Quick Access */}
+      {!searchTerm && (
+        <div className="mb-20">
+          <div className="flex items-center gap-3 mb-8">
+            <TrendingUp className="w-6 h-6 text-amber-500" />
+            <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest">Layanan Paling Sering Diakses</h3>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[
+              { title: 'Mutasi PNS', cat: 'Layanan Manajemen Karier', icon: Briefcase },
+              { title: 'Cuti Pegawai', cat: 'Layanan Kesejahteraan', icon: HeartPlus },
+              { title: 'SKP Tahunan', cat: 'Layanan Disiplin dan Kinerja', icon: ShieldCheck },
+              { title: 'Tugas Belajar', cat: 'Layanan Pengembangan SDM', icon: GraduationCap }
+            ].map((feat, i) => (
+              <motion.button
+                key={i}
+                whileHover={{ y: -8 }}
+                onClick={() => {
+                  setSelectedCategory(feat.cat);
+                  setSearchTerm(feat.title);
+                }}
+                className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-xl hover:border-amber-200 transition-all text-left flex items-start gap-4"
+              >
+                <div className="w-12 h-12 rounded-2xl bg-amber-50 flex items-center justify-center text-amber-600 shrink-0">
+                  <feat.icon className="w-6 h-6" />
+                </div>
+                <div>
+                  <h4 className="font-black text-slate-800 tracking-tight text-sm uppercase leading-tight line-clamp-1">{feat.title}</h4>
+                  <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-wider">{feat.cat.replace('Layanan ', '')}</p>
+                </div>
+              </motion.button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Category Hub (Bento Grid) - Semua nampak, tidak ada yang tersembunyi */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-12">
@@ -1568,150 +1673,236 @@ function ProfilView({ content }: { content: any }) {
     if (!member) return null;
     
     return (
-        <div className={cn("relative rounded-xl border border-slate-300 shadow-sm overflow-hidden flex flex-col shrink-0 bg-white", type === 'leader' ? 'w-64 h-64' : type === 'deputy' ? 'w-56 h-56' : 'w-48 h-48')}>
-            {/* Photo as Background */}
-            {member.imageUrl ? (
-                <img src={member.imageUrl} alt={member.name} className="absolute inset-0 w-full h-full object-cover" />
-            ) : (
-                <div className="absolute inset-0 w-full h-full flex items-center justify-center text-slate-400 text-5xl font-bold bg-slate-100">?</div>
-            )}
-            
-            {/* Information Overlay */}
-            <div className="absolute inset-x-0 bottom-0 bg-white/90 backdrop-blur-sm p-3 border-t border-slate-200">
-                <div className="font-bold text-sm tracking-tight text-slate-900 line-clamp-1">{member.name}</div>
-                <div className="text-[10px] font-bold uppercase tracking-wider text-slate-600 mt-0.5 line-clamp-2">{member.role}</div>
+        <motion.div 
+          whileHover={{ y: -5 }}
+          className={cn(
+            "relative rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden flex flex-col shrink-0 bg-white transition-all hover:shadow-xl hover:border-amber-200 group/card", 
+            type === 'leader' ? 'w-64 h-80' : type === 'deputy' ? 'w-56 h-72' : 'w-48 h-64'
+          )}
+        >
+            {/* Photo */}
+            <div className="h-[65%] w-full overflow-hidden bg-slate-100 flex items-center justify-center relative">
+              {member.imageUrl ? (
+                  <img src={member.imageUrl} alt={member.name} className="w-full h-full object-cover grayscale group-hover/card:grayscale-0 transition-all duration-700" />
+              ) : (
+                  <Users className="w-16 h-16 text-slate-300 group-hover/card:text-amber-500 transition-colors" />
+              )}
+              <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-white to-transparent" />
             </div>
-        </div>
+            
+            {/* Information */}
+            <div className="flex-1 p-5 pt-0 text-center flex flex-col justify-center">
+              <div className="font-black text-xs uppercase tracking-wider text-amber-600 mb-1">{type === 'leader' ? 'Ketua Tim' : type === 'deputy' ? 'Sekretariat' : 'Anggota'}</div>
+              <div className="font-bold text-sm tracking-tight text-slate-900 line-clamp-2 leading-tight mb-2">{member.name}</div>
+              <div className="text-[9px] font-bold uppercase tracking-[0.15em] text-slate-400 group-hover/card:text-slate-600 transition-colors">{member.role}</div>
+            </div>
+        </motion.div>
     );
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-20 animate-in fade-in">
-        <div className="text-center mb-16">
-            <h2 className="text-4xl font-extrabold text-slate-900 mb-6">Profil Tim Kerja TLK</h2>
-            <p className="text-slate-600 text-lg max-w-3xl mx-auto">{profile.description}</p>
-        </div>
-        
-        <div className="bg-slate-50 p-6 md:p-12 rounded-3xl border border-slate-200 overflow-x-auto">
-            <h3 className="text-2xl font-bold mb-16 text-slate-800 text-center">Struktur Organisasi</h3>
-            
-            {/* Tree Container */}
-            {profile.orgChartImageUrl ? (
-                <motion.div 
-                   initial={{ opacity: 0, scale: 0.95 }}
-                   animate={{ opacity: 1, scale: 1 }}
-                   className="flex justify-center bg-white p-4 rounded-2xl shadow-inner border border-slate-100"
-                >
-                    <img src={profile.orgChartImageUrl} alt="Struktur Organisasi" className="max-w-full h-auto rounded-lg shadow-sm" />
-                </motion.div>
-            ) : (
-                <div className="flex flex-col items-center min-w-[1000px] pb-10">
-                    {/* Level 1: Leader */}
-                    <div className="flex flex-col items-center">
-                        <MemberNode member={leader} type="leader" />
-                        <div className="h-12 w-0.5 bg-slate-400"></div>
+    <div className="max-w-7xl mx-auto px-4 py-20 animate-in fade-in space-y-24">
+        {/* Intro Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+            <motion.div 
+              initial={{ opacity: 0, x: -30 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="space-y-8"
+            >
+                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-100 text-amber-700 text-xs font-black uppercase tracking-widest border border-amber-200">
+                    Mengenal Kami
+                </div>
+                <h2 className="text-4xl md:text-5xl lg:text-6xl font-black text-slate-900 tracking-tighter leading-none">
+                    Profil Tim Kerja <span className="text-amber-500">TLK</span>
+                </h2>
+                <div className="w-20 h-2 bg-slate-900 rounded-full" />
+                <p className="text-slate-500 text-xl leading-relaxed font-medium">
+                    {profile.description}
+                </p>
+                <div className="grid grid-cols-2 gap-6 pt-4">
+                    <div className="p-6 bg-white border border-slate-100 rounded-3xl shadow-sm">
+                        <div className="text-3xl font-black text-slate-900 mb-1">01</div>
+                        <div className="text-xs font-black text-slate-400 uppercase tracking-widest">Integritas</div>
                     </div>
-                    
-                    {/* Level 2: Deputy */}
-                    {deputy && (
-                        <div className="flex flex-col items-center">
-                            <MemberNode member={deputy} type="deputy" />
-                            <div className="h-12 w-0.5 bg-slate-400"></div>
-                        </div>
-                    )}
-
-                    {/* Level 3: Staff Grid with Integrated Connectors */}
-                    <div className="w-full max-w-5xl">
-                        <div className="grid grid-cols-4 w-full">
-                            <div className="relative">
-                                <div className="absolute right-0 top-0 w-1/2 h-0.5 bg-slate-400"></div>
-                                <div className="absolute right-1/2 top-0 w-0.5 h-12 bg-slate-400"></div>
-                            </div>
-                            <div className="relative">
-                                <div className="absolute inset-x-0 top-0 h-0.5 bg-slate-400"></div>
-                                <div className="absolute left-1/2 top-0 w-0.5 h-12 bg-slate-400"></div>
-                            </div>
-                            <div className="relative">
-                                <div className="absolute inset-x-0 top-0 h-0.5 bg-slate-400"></div>
-                                <div className="absolute left-1/2 top-0 w-0.5 h-12 bg-slate-400"></div>
-                            </div>
-                            <div className="relative">
-                                <div className="absolute left-0 top-0 w-1/2 h-0.5 bg-slate-400"></div>
-                                <div className="absolute left-1/2 top-0 w-0.5 h-12 bg-slate-400"></div>
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-4 gap-x-8 w-full">
-                            {[0, 1, 2, 3].map((colIdx) => (
-                                <div key={colIdx} className="flex flex-col items-center pt-0">
-                                     <div className="flex flex-col gap-8 w-full items-center">
-                                         {staff.slice(colIdx * 3, colIdx * 3 + 3).map((m: any, rowIdx: number) => {
-                                             const currentStaffInCol = staff.slice(colIdx * 3, colIdx * 3 + 3);
-                                             return (
-                                                <React.Fragment key={rowIdx}>
-                                                    <MemberNode member={m} type="staff" />
-                                                    {rowIdx < currentStaffInCol.length - 1 && (
-                                                        <div className="w-0.5 h-10 bg-slate-400"></div>
-                                                    )}
-                                                </React.Fragment>
-                                             );
-                                         })}
-                                     </div>
-                                </div>
-                            ))}
-                        </div>
+                    <div className="p-6 bg-white border border-slate-100 rounded-3xl shadow-sm">
+                        <div className="text-3xl font-black text-slate-900 mb-1">02</div>
+                        <div className="text-xs font-black text-slate-400 uppercase tracking-widest">Kolaborasi</div>
                     </div>
                 </div>
-            )}
+            </motion.div>
+            
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="relative aspect-square rounded-[3rem] overflow-hidden shadow-2xl border-8 border-white group"
+            >
+                <div className="absolute inset-0 bg-amber-500/10 mix-blend-overlay group-hover:bg-transparent transition-all duration-700" />
+                <img 
+                  src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?q=80&w=2070&auto=format&fit=crop" 
+                  alt="Team Collaboration" 
+                  className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700 scale-110 group-hover:scale-100" 
+                />
+                <div className="absolute inset-0 p-12 flex flex-col justify-end bg-gradient-to-t from-slate-900/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all duration-500">
+                    <h4 className="text-white font-black text-2xl tracking-tighter italic">"Profesional, Melayani, Bermartabat."</h4>
+                </div>
+            </motion.div>
         </div>
 
-        {/* Functions Section */}
-        <div className="bg-white p-8 md:p-12 rounded-3xl border border-slate-200 shadow-sm mt-16">
-            <h3 className="text-2xl font-bold text-slate-800 mb-8 font-sans text-center">Fungsi & Rincian Tugas</h3>
-            <ul className="space-y-4 max-w-3xl mx-auto">
-                {profile.functions.map((f: string, i: number) => (
-                    <li key={i} className="flex gap-4 text-slate-600 items-start">
-                        <div className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-2.5 shrink-0" />
-                        <span className="text-lg">{f}</span>
-                    </li>
-                ))}
-            </ul>
+        {/* Structure Section */}
+        <section className="bg-white p-8 md:p-16 rounded-[4rem] border border-slate-200 shadow-2xl shadow-slate-200/50 overflow-hidden">
+            <div className="text-center mb-20 space-y-4">
+                <h3 className="text-sm font-black text-amber-600 uppercase tracking-[0.3em]">Hierarchy</h3>
+                <h2 className="text-4xl font-black text-slate-900 tracking-tighter">Struktur Organisasi</h2>
+                <div className="w-12 h-1 bg-slate-200 mx-auto rounded-full" />
+            </div>
+            
+            <div className="flex justify-center overflow-x-auto pb-12 no-scrollbar">
+                {profile.orgChartImageUrl ? (
+                    <motion.div 
+                      key="img-chart"
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className="bg-white p-8 rounded-[3rem] shadow-inner border border-slate-100"
+                    >
+                        <img src={profile.orgChartImageUrl} alt="Struktur Organisasi" className="max-w-full h-auto rounded-2xl shadow-sm" />
+                    </motion.div>
+                ) : (
+                    <div className="flex flex-col items-center min-w-[1000px]">
+                        {/* Level 1: Leader */}
+                        <div className="flex flex-col items-center">
+                            <MemberNode member={leader} type="leader" />
+                            <div className="h-16 w-0.5 bg-slate-200 relative">
+                                <div className="absolute inset-0 bg-gradient-to-b from-amber-500/50 to-transparent" />
+                            </div>
+                        </div>
+                        
+                        {/* Level 2: Deputy */}
+                        {deputy && (
+                            <div className="flex flex-col items-center">
+                                <MemberNode member={deputy} type="deputy" />
+                                <div className="h-16 w-0.5 bg-slate-200" />
+                            </div>
+                        )}
+
+                        {/* Level 3: Staff Grid with Integrated Connectors */}
+                        <div className="w-full max-w-6xl">
+                            <div className="grid grid-cols-4 w-full h-16">
+                                <div className="relative">
+                                    <div className="absolute right-0 top-0 w-1/2 h-0.5 bg-slate-200"></div>
+                                    <div className="absolute right-1/2 top-0 w-0.5 h-full bg-slate-200"></div>
+                                </div>
+                                <div className="relative">
+                                    <div className="absolute inset-x-0 top-0 h-0.5 bg-slate-200"></div>
+                                    <div className="absolute left-1/2 top-0 w-0.5 h-full bg-slate-200"></div>
+                                </div>
+                                <div className="relative">
+                                    <div className="absolute inset-x-0 top-0 h-0.5 bg-slate-200"></div>
+                                    <div className="absolute left-1/2 top-0 w-0.5 h-full bg-slate-200"></div>
+                                </div>
+                                <div className="relative">
+                                    <div className="absolute left-0 top-0 w-1/2 h-0.5 bg-slate-200"></div>
+                                    <div className="absolute left-1/2 top-0 w-0.5 h-full bg-slate-200"></div>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-4 gap-10">
+                                {[0, 1, 2, 3].map((colIdx) => (
+                                    <div key={colIdx} className="flex flex-col items-center">
+                                         <div className="flex flex-col gap-10 items-center">
+                                             {staff.slice(colIdx * 3, colIdx * 3 + 3).map((m: any, rowIdx: number) => {
+                                                 return (
+                                                    <React.Fragment key={rowIdx}>
+                                                        <MemberNode member={m} type="staff" />
+                                                        {rowIdx < staff.slice(colIdx * 3, colIdx * 3 + 3).length - 1 && (
+                                                            <div className="w-0.5 h-10 bg-slate-100" />
+                                                        )}
+                                                    </React.Fragment>
+                                                 );
+                                             })}
+                                         </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+        </section>
+
+        {/* Vision & Functions Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+            <div className="lg:col-span-1 bg-slate-900 rounded-[3rem] p-12 text-white relative overflow-hidden group">
+                <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-125 transition-transform duration-700">
+                    <GraduationCap className="w-32 h-32" />
+                </div>
+                <h3 className="text-3xl font-black tracking-tighter mb-8 bg-gradient-to-r from-amber-200 to-amber-500 bg-clip-text text-transparent">Visi Utama</h3>
+                <p className="text-slate-300 text-lg leading-relaxed font-medium italic">
+                    "Menjadi pusat pelayanan tata laksana dan kepegawaian yang unggul, profesional, dan akuntabel dalam mendukung Universitas Tidar menuju Wilayah Bebas Korupsi (WBK)."
+                </p>
+                <div className="mt-12 flex items-center gap-4">
+                    <div className="w-12 h-1 bg-amber-500 rounded-full" />
+                    <span className="text-xs font-black uppercase tracking-widest text-slate-500">Core Values</span>
+                </div>
+            </div>
+            
+            <div className="lg:col-span-2 bg-white rounded-[3rem] p-12 border border-slate-200 shadow-sm relative overflow-hidden">
+                <div className="absolute bottom-0 right-0 p-12 text-slate-50 opacity-[0.03]">
+                  <Briefcase className="w-64 h-64" />
+                </div>
+                <h3 className="text-3xl font-black text-slate-800 tracking-tighter mb-10 first-letter:text-amber-500">Fungsi & Rincian Tugas</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  {profile.functions.map((f: string, i: number) => (
+                    <div key={i} className="flex gap-4 group">
+                      <div className="w-10 h-10 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-amber-100 group-hover:text-amber-600 transition-all shrink-0">
+                        <CheckCircle2 className="w-5 h-5" />
+                      </div>
+                      <p className="text-slate-600 font-medium leading-relaxed leading-snug">
+                        {f}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+            </div>
         </div>
 
         {/* Logo Philosophy Section */}
         {profile.logoUrl && (
-            <div className="bg-slate-900 text-white p-8 md:p-12 rounded-3xl mt-16 overflow-hidden relative">
-                <div className="absolute top-0 right-0 -mr-20 -mt-20 opacity-10 pointer-events-none">
-                    <img src={profile.logoUrl} alt="Logo TLK Watermark" className="w-96 h-96 object-contain" />
+            <div className="bg-white p-12 md:p-20 rounded-[4rem] shadow-2xl shadow-slate-200/50 border border-slate-100 relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-12 opacity-5 scale-150 rotate-12">
+                   <img src={profile.logoUrl} alt="Watermark" className="w-96 h-96" />
                 </div>
                 
-                <h3 className="text-3xl font-bold mb-10 text-center relative z-10">Filosofi Logo TLK</h3>
-                
-                <div className="flex flex-col md:flex-row gap-12 items-center relative z-10">
-                    <div className="md:w-1/3 flex justify-center">
-                        <div className="bg-white p-6 rounded-2xl shadow-xl transform rotate-3 hover:rotate-0 transition-transform duration-300">
-                            <img src={profile.logoUrl} alt="Logo Tata Laksana dan Kepegawaian Untidar" className="w-64 h-auto object-contain" />
+                <div className="row flex flex-col lg:flex-row gap-20 items-center">
+                    <div className="lg:w-1/3">
+                        <div className="relative group">
+                            <div className="absolute inset-0 bg-amber-500/20 blur-[60px] opacity-0 group-hover:opacity-100 transition-opacity duration-700 rounded-full" />
+                            <img src={profile.logoUrl} alt="Logo TLK" className="w-full h-auto object-contain relative z-10" />
                         </div>
                     </div>
                     
-                    <div className="md:w-2/3 space-y-6">
-                        {profile.filosofiLogo && profile.filosofiLogo.map((item: any, i: number) => (
-                            <div key={i} className="flex gap-4 items-start">
-                                <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold shrink-0 mt-1">
-                                    {i + 1}
-                                </div>
-                                <div>
-                                    <h4 className="text-xl font-bold text-amber-400 mb-1">{item.title}</h4>
-                                    <p className="text-slate-300 leading-relaxed">{item.desc}</p>
-                                </div>
-                            </div>
-                        ))}
+                    <div className="lg:w-2/3 space-y-12">
+                        <div className="space-y-4">
+                          <h3 className="text-4xl font-black text-slate-900 tracking-tighter">Filosofi <span className="text-amber-500">Logo</span></h3>
+                          <p className="text-slate-500 font-medium">Setiap elemen dalam visual identitas kami mencerminkan semangat pelayanan dan integritas pendidikan tinggi.</p>
+                        </div>
+                        
+                        <div className="grid md:grid-cols-2 gap-10">
+                          {profile.filosofiLogo && profile.filosofiLogo.map((item: any, i: number) => (
+                              <div key={i} className="space-y-3 p-6 rounded-[2rem] bg-slate-50 border border-white hover:border-slate-200 transition-all hover:bg-white hover:shadow-xl group">
+                                  <h4 className="text-lg font-black text-slate-800 tracking-tight group-hover:text-amber-600 transition-colors uppercase text-xs">{item.title}</h4>
+                                  <p className="text-slate-500 text-sm leading-relaxed">{item.desc}</p>
+                              </div>
+                          ))}
+                        </div>
 
                         {profile.moto && (
-                            <div className="mt-8 pt-8 border-t border-slate-700">
-                                <blockquote className="text-xl italic font-medium text-slate-200 border-l-4 border-amber-500 pl-6">
+                            <div className="bg-slate-900 rounded-3xl p-8 text-white flex items-center gap-6 shadow-2xl">
+                                <div className="w-12 h-12 rounded-full bg-amber-500 flex items-center justify-center shrink-0">
+                                   <Megaphone className="w-6 h-6 text-slate-900" />
+                                </div>
+                                <p className="text-xl font-bold tracking-tight italic opacity-90">
                                     "{profile.moto}"
-                                </blockquote>
+                                </p>
                             </div>
                         )}
                     </div>
@@ -1720,7 +1911,6 @@ function ProfilView({ content }: { content: any }) {
         )}
     </div>
   );
-
 }
 
 function PengumumanView({ content }: { content: any }) {
@@ -1787,16 +1977,6 @@ function BantuanView({ content }: { content: any }) {
         </div>
       </div>
     </div>
-  );
-}
-
-// Misc dummy icons
-function TrendingUpIcon(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline>
-      <polyline points="16 7 22 7 22 13"></polyline>
-    </svg>
   );
 }
 
