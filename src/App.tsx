@@ -447,7 +447,11 @@ export default function App() {
       </footer>
 
       {/* Initialize AI floating chat */}
-      <AIChatBot />
+      <AIChatBot contextData={{
+        services: activeContent?.services,
+        profile: activeContent?.profile,
+        bantuan: activeContent?.bantuan
+      }} />
     </div>
   );
 }
@@ -667,6 +671,7 @@ function BerandaView({ setActiveTab, content, visitCount }: { setActiveTab: (tab
               icon: AppWindow, 
               color: 'text-blue-600', 
               bg: 'bg-blue-500/10',
+              gradient: 'from-blue-50/50 to-transparent hover:from-blue-50 hover:to-blue-50/50 hover:border-blue-200',
               desc: 'Sistem info kepegawaian',
               action: () => {
                 const el = document.getElementById('applications-section');
@@ -679,6 +684,7 @@ function BerandaView({ setActiveTab, content, visitCount }: { setActiveTab: (tab
               icon: Users, 
               color: 'text-amber-600', 
               bg: 'bg-amber-500/10',
+              gradient: 'from-amber-50/50 to-transparent hover:from-amber-50 hover:to-amber-50/50 hover:border-amber-200',
               desc: 'Klik untuk lihat semua layanan',
               action: () => {
                 setActiveTab('layanan');
@@ -690,6 +696,7 @@ function BerandaView({ setActiveTab, content, visitCount }: { setActiveTab: (tab
               icon: FileText, 
               color: 'text-emerald-600', 
               bg: 'bg-emerald-500/10',
+              gradient: 'from-emerald-50/50 to-transparent hover:from-emerald-50 hover:to-emerald-50/50 hover:border-emerald-200',
               desc: 'Manual & peraturan SDM',
               action: () => {
                 setActiveTab('layanan');
@@ -701,6 +708,7 @@ function BerandaView({ setActiveTab, content, visitCount }: { setActiveTab: (tab
               icon: Activity, 
               color: 'text-rose-600', 
               bg: 'bg-rose-500/10',
+              gradient: 'from-rose-50/50 to-transparent hover:from-rose-50 hover:to-rose-50/50 hover:border-rose-200',
               desc: 'Total kunjungan portal',
               action: null
             }
@@ -712,22 +720,27 @@ function BerandaView({ setActiveTab, content, visitCount }: { setActiveTab: (tab
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 + (i * 0.1), duration: 0.6 }}
               className={cn(
-                "group relative p-6 rounded-2xl flex flex-col items-center md:items-start text-center md:text-left transition-all duration-500",
-                stat.action ? "hover:bg-slate-50 hover:shadow-xl active:scale-[0.98] cursor-pointer" : "cursor-default"
+                "group relative p-6 rounded-3xl flex flex-col items-center md:items-start text-center md:text-left transition-all duration-500",
+                "border border-slate-100 bg-gradient-to-b overflow-hidden",
+                stat.gradient,
+                stat.action ? "hover:shadow-xl hover:-translate-y-1 active:scale-[0.98] cursor-pointer" : "cursor-default"
               )}
             >
-               <div className={cn("w-14 h-14 rounded-3xl flex items-center justify-center mb-6 transition-all duration-500 group-hover:scale-110 group-hover:rotate-[15deg] shadow-inner", stat.bg, stat.color)}>
+               {/* Decorative background blob */}
+               <div className={cn("absolute -right-8 -top-8 w-32 h-32 rounded-full blur-3xl opacity-20 transition-opacity duration-500 group-hover:opacity-50", stat.bg)}></div>
+
+               <div className={cn("w-14 h-14 rounded-3xl flex items-center justify-center mb-6 transition-all duration-500 group-hover:scale-110 group-hover:rotate-[15deg] shadow-inner relative z-10", stat.bg, stat.color)}>
                 <stat.icon className="w-7 h-7" />
               </div>
-              <div className="text-4xl font-black text-slate-900 tracking-tighter leading-tight mb-1">{stat.value}</div>
-              <div className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] mt-1 mb-3">{stat.label}</div>
-              <div className="hidden md:block text-[11px] font-semibold text-slate-500 leading-tight opacity-50 group-hover:opacity-100 transition-all duration-500">
+              <div className="text-4xl font-black text-slate-900 tracking-tighter leading-tight mb-1 relative z-10">{stat.value}</div>
+              <div className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] mt-1 mb-3 relative z-10">{stat.label}</div>
+              <div className="hidden md:block text-[11px] font-semibold text-slate-500 leading-tight opacity-50 group-hover:opacity-100 transition-all duration-500 relative z-10">
                 {stat.desc}
               </div>
               
               {stat.action && (
-                <div className="absolute top-10 right-10 opacity-0 group-hover:opacity-100 transition-all duration-500 -translate-x-2 group-hover:translate-x-0">
-                  <ArrowRight className="w-5 h-5 text-amber-500" />
+                <div className="absolute top-8 right-8 opacity-0 group-hover:opacity-100 transition-all duration-500 -translate-x-2 group-hover:translate-x-0">
+                  <ArrowRight className={cn("w-5 h-5", stat.color)} />
                 </div>
               )}
             </motion.button>
@@ -2228,7 +2241,7 @@ function BantuanView({ content }: { content: any }) {
 }
 
 // --- AI ChatBot Feature ---
-function AIChatBot() {
+function AIChatBot({ contextData }: { contextData: any }) {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<{role: 'user' | 'model', text: string}[]>([
     { role: 'model', text: 'Halo! Saya asisten virtual Layanan SDM Universitas Tidar. Ada yang bisa saya bantu terkait layanan kepegawaian?' }
@@ -2258,6 +2271,7 @@ function AIChatBot() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           message: userText,
+          contextData: contextData,
           history: messages.map(m => ({ 
             role: m.role === 'user' ? 'user' : 'model', 
             parts: [{ text: m.text }] 

@@ -102,6 +102,8 @@ function PanduanEditor({ services, settings }: { services: any[], settings: any 
   
   const objectUrl = usePdfUrl(detail?.sopUrl);
 
+
+
   // Track which services already have content in Firestore
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'service_details'), (snap) => {
@@ -406,12 +408,6 @@ function PanduanEditor({ services, settings }: { services: any[], settings: any 
              <h3 className="font-black text-slate-800 uppercase tracking-wider text-xs flex items-center gap-2">
                 <Scale className="w-4 h-4 text-slate-400" /> Dasar Hukum
              </h3>
-             <button 
-               className="text-xs font-black px-4 py-2 bg-purple-600 text-white rounded-xl shadow-lg hover:bg-purple-700 transition"
-               onClick={() => alert("Fitur AI: Generate Dasar Hukum otomatis")}
-             >
-               ✨ Generate dengan AI
-             </button>
            </div>
            <div className="space-y-3">
              {detail.dasarHukum.map((h: string, i: number) => (
@@ -427,7 +423,11 @@ function PanduanEditor({ services, settings }: { services: any[], settings: any 
                    className="flex-1 bg-slate-50 border-slate-100 rounded-2xl px-5 py-3 text-sm focus:bg-white focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all" 
                  />
                  <button 
-                   onClick={() => setDetail({...detail, dasarHukum: detail.dasarHukum.filter((_:any,idx:number)=>idx!==i)})}
+                   onClick={() => {
+                     if(window.confirm('Yakin ingin menghapus dasar hukum ini?')) {
+                       setDetail({...detail, dasarHukum: detail.dasarHukum.filter((_:any,idx:number)=>idx!==i)});
+                     }
+                   }}
                    className="p-3 text-slate-300 hover:text-red-500 transition-colors"
                  >
                    <Trash className="w-4 h-4 text-red-400"/>
@@ -448,12 +448,6 @@ function PanduanEditor({ services, settings }: { services: any[], settings: any 
              <h3 className="font-black text-slate-800 uppercase tracking-wider text-xs flex items-center gap-2">
                 <BookOpen className="w-4 h-4 text-slate-400" /> Pengertian
              </h3>
-             <button 
-               className="text-xs font-black px-4 py-2 bg-purple-600 text-white rounded-xl shadow-lg hover:bg-purple-700 transition"
-               onClick={() => alert("Fitur AI: Generate Pengertian secara otomatis")}
-             >
-               ✨ Generate dengan AI
-             </button>
            </div>
            <textarea 
              value={detail.pengertian} 
@@ -480,7 +474,11 @@ function PanduanEditor({ services, settings }: { services: any[], settings: any 
               {detail.jenisKenaikanPangkat?.map((j: any, idx: number) => (
                 <div key={idx} className="border border-slate-100 rounded-[2.5rem] bg-slate-50/50 p-8 relative group">
                   <button 
-                    onClick={() => setDetail({...detail, jenisKenaikanPangkat: detail.jenisKenaikanPangkat.filter((_:any,i:number)=>i!==idx)})} 
+                    onClick={() => {
+                      if(window.confirm('Yakin ingin menghapus jenis kenaikan pangkat ini?')) {
+                        setDetail({...detail, jenisKenaikanPangkat: detail.jenisKenaikanPangkat.filter((_:any,i:number)=>i!==idx)});
+                      }
+                    }} 
                     className="absolute top-6 right-6 p-2 text-slate-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
                   >
                     <Trash className="w-5 h-5"/>
@@ -530,9 +528,11 @@ function PanduanEditor({ services, settings }: { services: any[], settings: any 
                                 placeholder="Telah 4 tahun dalam pangkat..."
                               />
                               <button onClick={() => {
-                                const copy = [...detail.jenisKenaikanPangkat];
-                                copy[idx] = {...copy[idx], ketentuan: copy[idx].ketentuan.filter((_:any,i:number)=>i!==kIdx)};
-                                setDetail({...detail, jenisKenaikanPangkat: copy});
+                                if(window.confirm('Yakin ingin menghapus ketentuan ini?')) {
+                                  const copy = [...detail.jenisKenaikanPangkat];
+                                  copy[idx] = {...copy[idx], ketentuan: copy[idx].ketentuan.filter((_:any,i:number)=>i!==kIdx)};
+                                  setDetail({...detail, jenisKenaikanPangkat: copy});
+                                }
                               }}><Trash className="w-3 h-3 text-slate-300" /></button>
                             </div>
                           ))}
@@ -565,9 +565,11 @@ function PanduanEditor({ services, settings }: { services: any[], settings: any 
                               placeholder="FC SK Pangkat / PAK / Ijazah..."
                             />
                             <button onClick={() => {
-                              const copy = [...detail.jenisKenaikanPangkat];
-                              copy[idx] = {...copy[idx], dokumen: copy[idx].dokumen.filter((_:any,i:number)=>i!==dIdx)};
-                              setDetail({...detail, jenisKenaikanPangkat: copy});
+                              if(window.confirm('Yakin ingin menghapus dokumen kelengkapan ini?')) {
+                                const copy = [...detail.jenisKenaikanPangkat];
+                                copy[idx] = {...copy[idx], dokumen: copy[idx].dokumen.filter((_:any,i:number)=>i!==dIdx)};
+                                setDetail({...detail, jenisKenaikanPangkat: copy});
+                              }
                             }}><Trash className="w-3 h-3 text-slate-300" /></button>
                           </div>
                         ))}
@@ -591,14 +593,6 @@ function PanduanEditor({ services, settings }: { services: any[], settings: any 
              <h3 className="font-black text-slate-800 uppercase tracking-wider text-xs flex items-center gap-2">
                 <Settings className="w-4 h-4 text-slate-400" /> Alur & SOP Progress
              </h3>
-             <div className="flex gap-2">
-               <button 
-                 className="text-xs font-black px-4 py-2 bg-purple-600 text-white rounded-xl shadow-lg hover:bg-purple-700"
-                 onClick={() => alert("Fitur AI: Generate SOP dari Peraturan...")}
-               >
-                 ✨ Generate dengan AI
-               </button>
-             </div>
            </div>
            
            <div className="space-y-4 flex items-center gap-4">
@@ -624,33 +618,28 @@ function PanduanEditor({ services, settings }: { services: any[], settings: any 
                           type="file" 
                           accept="application/pdf,image/*" 
                           className="hidden" 
-                          onChange={(e) => {
+                          onChange={async (e) => {
                             const file = e.target.files?.[0];
                             if (!file) return;
                             
-                            // Batas wajar untuk base64 di Firestore adalah maksimum 1MB per dokumen.
-                            if (file.size > 800 * 1024) {
-                              alert("Ukuran file melebihi batas 800KB. Karena disimpan langsung di database, harap kompres PDF Anda terlebih dahulu, atau gunakan Google Drive dan salin link-nya.");
+                            if (file.size > 5 * 1024 * 1024) {
+                              alert("Ukuran file melebihi batas 5MB. Harap kompres PDF Anda terlebih dahulu.");
                               e.target.value = '';
                               return;
                             }
 
                             setSaving(true);
                             try {
-                              const reader = new FileReader();
-                              reader.onloadend = () => {
-                                setDetail({...detail, sopUrl: reader.result as string});
-                                alert("Berhasil menyiapkan dokumen! Silakan klik 'SIMPAN PERUBAHAN' untuk memperbarui.");
-                                setSaving(false);
-                              };
-                              reader.onerror = () => {
-                                alert("Gagal membaca file.");
-                                setSaving(false);
-                              };
-                              reader.readAsDataURL(file);
+                              const storageRef = ref(storage, `sops/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.\-_]/g, '')}`);
+                              const snapshot = await uploadBytes(storageRef, file);
+                              const downloadUrl = await getDownloadURL(snapshot.ref);
+                              
+                              setDetail({...detail, sopUrl: downloadUrl});
+                              alert("Berhasil mengunggah dokumen! Silakan klik 'SIMPAN SEMUA PERUBAHAN PANDUAN' untuk memperbarui database.");
                             } catch (error: any) {
                               console.error("Upload error:", error);
-                              alert("Gagal memproses file. Error: " + error.message);
+                              alert("Gagal mengunggah file ke server. Error: " + error.message);
+                            } finally {
                               setSaving(false);
                             }
                           }}
@@ -682,7 +671,11 @@ function PanduanEditor({ services, settings }: { services: any[], settings: any 
                   <div className="border border-slate-100 rounded-2xl overflow-hidden shadow-inner bg-slate-50">
                     <div className="p-3 bg-slate-100 border-b border-slate-200 flex items-center justify-between">
                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Preview Dokumen Terpasang</span>
-                       <button onClick={() => setDetail({...detail, sopUrl: ''})} className="text-red-500 hover:text-red-700">
+                       <button onClick={() => {
+                         if(window.confirm('Yakin ingin menghapus file / URL dokumen PDF ini?')) {
+                           setDetail({...detail, sopUrl: ''});
+                         }
+                       }} className="text-red-500 hover:text-red-700">
                          <Trash className="w-3.5 h-3.5" />
                        </button>
                     </div>
@@ -736,7 +729,11 @@ function PanduanEditor({ services, settings }: { services: any[], settings: any 
                         placeholder="Keterangan singkat apa yang terjadi..." 
                       />
                     </div>
-                    <button onClick={() => setDetail({...detail, alurSteps: detail.alurSteps.filter((_:any,i:number)=>i!==idx)})}><Trash className="w-4 h-4 text-red-300" /></button>
+                    <button onClick={() => {
+                      if(window.confirm('Yakin ingin menghapus langkah ini?')) {
+                        setDetail({...detail, alurSteps: detail.alurSteps.filter((_:any,i:number)=>i!==idx)});
+                      }
+                    }}><Trash className="w-4 h-4 text-red-300" /></button>
                  </div>
                ))}
                <button 
@@ -1567,8 +1564,10 @@ export default function AdminDashboard({ onExit }: { onExit?: () => void }) {
                                               }} className="hidden" />
                                            </label>
                                            <button onClick={() => {
+                                             if(window.confirm('Yakin ingin menghapus anggota tim ini?')) {
                                                const newMembers = settings.profile.members.filter((_: any, i: number) => i !== idx);
                                                updateSettingNode('profile', 'members', newMembers);
+                                             }
                                            }} className="text-red-400 hover:text-red-600 p-2 hover:bg-red-50 rounded-lg transition-colors" title="Hapus Anggota"><Trash className="w-4 h-4"/></button>
                                        </div>
                                      </SortableItem>

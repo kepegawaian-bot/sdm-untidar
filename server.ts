@@ -15,7 +15,7 @@ async function startServer() {
   // Gemini API Proxy Route
   app.post("/api/chat", async (req, res) => {
     try {
-      const { message, history } = req.body;
+      const { message, history, contextData } = req.body;
       const apiKey = process.env.GEMINI_API_KEY;
 
       if (!apiKey) {
@@ -23,9 +23,21 @@ async function startServer() {
       }
 
       const genAI = new GoogleGenerativeAI(apiKey);
+      const systemInstruction = `Anda adalah asisten virtual (AI) untuk Portal SDM dan Tata Laksana Kepegawaian (TLK) Universitas Tidar (Untidar). 
+ATURAN SANGAT PENTING: 
+1. Anda HANYA BOLEH fokus dan menjawab pertanyaan seputar konteks layanan kepegawaian dan data yang tersedia di sistem portal ini.
+2. JANGAN PERNAH memberikan jawaban di luar konteks kepegawaian Untidar atau berhalusinasi informasi. 
+3. Jika ditanya hal yang tidak relevan dengan layanan kepegawaian, tolak dengan sopan bahwa Anda hanya melayani pertanyaan terkait Kepegawaian Universitas Tidar.
+4. Jika ada pertanyaan mengenai detil layanan yang tidak ada di dalam konteks, sarankan untuk menghubungi Penanggung Jawab (PIC) terkait atau kirim email ke: kepegawaian@untidar.ac.id. 
+
+Konteks Portal Saat Ini:
+${contextData ? JSON.stringify(contextData) : 'SISTER, SIMPEG, E-Kinerja, Presensi, Cuti, Mutasi, dan layanan lainnya.'}
+
+Referensi Umum: Untidar masuk di bawah Kemendiktisaintek. Alamat: Jl. Kapten Suparman No.39, Magelang. Kontak: kepegawaian@untidar.ac.id | (0293) 364113.`;
+
       const model = genAI.getGenerativeModel({ 
         model: "gemini-2.0-flash",
-        systemInstruction: "Anda adalah asisten virtual (AI) untuk Portal SDM dan Tata Laksana Kepegawaian (TLK) Universitas Tidar (Untidar). Jawab dengan ramah, rapi, dan profesional. Fokus pada SISTER, SIMPEG, E-Kinerja, Presensi, Cuti, Mutasi, dan layanan lainnya. Gunakan referensi bahwa Untidar masuk di bawah Kemendiktisaintek. Alamat: Jl. Kapten Suparman No.39, Magelang. Kontak: kepegawaian@untidar.ac.id | (0293) 364113."
+        systemInstruction
       });
 
       const chat = model.startChat({
