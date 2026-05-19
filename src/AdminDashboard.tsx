@@ -624,28 +624,33 @@ function PanduanEditor({ services, settings }: { services: any[], settings: any 
                           type="file" 
                           accept="application/pdf,image/*" 
                           className="hidden" 
-                          onChange={async (e) => {
+                          onChange={(e) => {
                             const file = e.target.files?.[0];
                             if (!file) return;
                             
-                            if (file.size > 5 * 1024 * 1024) {
-                              alert("Ukuran file melebihi batas 5MB. Harap kompres PDF Anda terlebih dahulu.");
+                            // Batas wajar untuk base64 di Firestore adalah maksimum 1MB per dokumen.
+                            if (file.size > 800 * 1024) {
+                              alert("Ukuran file melebihi batas 800KB. Karena disimpan langsung di database, harap kompres PDF Anda terlebih dahulu, atau gunakan Google Drive dan salin link-nya.");
                               e.target.value = '';
                               return;
                             }
 
                             setSaving(true);
                             try {
-                              const storageRef = ref(storage, `sops/${Date.now()}_${file.name}`);
-                              const snapshot = await uploadBytes(storageRef, file);
-                              const downloadUrl = await getDownloadURL(snapshot.ref);
-                              
-                              setDetail({...detail, sopUrl: downloadUrl});
-                              alert("Berhasil mengunggah dokumen! Silakan klik 'SIMPAN PERUBAHAN' untuk memperbarui.");
+                              const reader = new FileReader();
+                              reader.onloadend = () => {
+                                setDetail({...detail, sopUrl: reader.result as string});
+                                alert("Berhasil menyiapkan dokumen! Silakan klik 'SIMPAN PERUBAHAN' untuk memperbarui.");
+                                setSaving(false);
+                              };
+                              reader.onerror = () => {
+                                alert("Gagal membaca file.");
+                                setSaving(false);
+                              };
+                              reader.readAsDataURL(file);
                             } catch (error: any) {
                               console.error("Upload error:", error);
                               alert("Gagal memproses file. Error: " + error.message);
-                            } finally {
                               setSaving(false);
                             }
                           }}
@@ -753,7 +758,7 @@ function PanduanEditor({ services, settings }: { services: any[], settings: any 
               <select 
                 value={detail.pic || ''} 
                 onChange={e => setDetail({...detail, pic: e.target.value})} 
-                className="block w-full bg-transparent text-3xl font-black text-amber-900 border-b border-amber-200 outline-none focus:border-amber-500 pb-2 appearance-none cursor-pointer" 
+                className="block w-full bg-slate-50 text-base font-bold text-slate-800 border-2 border-amber-200 rounded-xl px-4 py-3 outline-none focus:border-amber-500 appearance-none cursor-pointer hover:bg-slate-100 transition-colors" 
               >
                 <option value="" disabled>Pilih Penanggung Jawab...</option>
                 {settings?.profile?.members?.map((member: any, i: number) => (
@@ -764,6 +769,27 @@ function PanduanEditor({ services, settings }: { services: any[], settings: any 
               <p className="text-amber-700/60 font-bold text-xs uppercase tracking-widest">Tim Kerja Tata Laksana & Kepegawaian</p>
            </div>
         </section>
+
+        <div className="pt-4 pb-0 sticky bottom-4 z-50">
+           <button 
+             onClick={async () => {
+               setSaving(true);
+               try {
+                 await setDoc(doc(db, 'service_details', selectedSlug), { ...detail, updatedAt: serverTimestamp() });
+                 alert('Detail Panduan Layanan Berhasil Disimpan!');
+               } catch(e: any) { 
+                 console.error("Gagal menyimpan:", e);
+                 alert(`Gagal menyimpan data. Pastikan ukuran dokumen SOP (Base64) tidak terlalu besar. Error: ${e.message}`);
+               }
+               setSaving(false);
+             }} 
+             disabled={saving} 
+             className="w-full bg-blue-600 text-white px-8 py-4 rounded-2xl font-black shadow-xl shadow-blue-600/30 hover:bg-blue-700 transition-all flex items-center justify-center gap-2 text-lg border-2 border-blue-500"
+           >
+             {saving ? <div className="w-6 h-6 border-4 border-white/40 border-t-white rounded-full animate-spin"></div> : <Save className="w-6 h-6" />}
+             {saving ? 'MEMPROSES & MENYIMPAN PANDUAN...' : 'SIMPAN SEMUA PERUBAHAN PANDUAN'}
+           </button>
+        </div>
       </div>
     </div>
   );
@@ -1300,10 +1326,40 @@ export default function AdminDashboard({ onExit }: { onExit?: () => void }) {
     }
   };
 
-  const uploadImageToStorage = async (file: File, pathPrefix: string): Promise<string> => {
-    const storageRef = ref(storage, `${pathPrefix}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.\-_]/g, '')}`);
-    const snapshot = await uploadBytes(storageRef, file);
-    return await getDownloadURL(snapshot.ref);
+  const compressImageAsDataUrl = (file: File, maxWidth = 800, maxHeight = 800): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+          const img = new window.Image();
+          img.onload = () => {
+              const canvas = document.createElement('canvas');
+              let width = img.width;
+              let height = img.height;
+
+              if (width > height) {
+                  if (width > maxWidth) {
+                      height *= maxWidth / width;
+                      width = maxWidth;
+                  }
+              } else {
+                  if (height > maxHeight) {
+                      width *= maxHeight / height;
+                      height = maxHeight;
+                  }
+              }
+              canvas.width = width;
+              canvas.height = height;
+              const ctx = canvas.getContext('2d');
+              ctx?.drawImage(img, 0, 0, width, height);
+              
+              resolve(canvas.toDataURL('image/webp', 0.8));
+          };
+          img.onerror = () => reject(new Error("Gagal membaca gambar"));
+          img.src = event.target?.result as string;
+      };
+      reader.onerror = () => reject(new Error("Gagal membaca file"));
+      reader.readAsDataURL(file);
+    });
   };
 
   const handleImageUpload = async (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1312,8 +1368,8 @@ export default function AdminDashboard({ onExit }: { onExit?: () => void }) {
 
     setSaving(true);
     try {
-      const downloadUrl = await uploadImageToStorage(file, 'images/apps');
-      updateArrayItem('applications', index, 'imageUrl', downloadUrl);
+      const dataUrl = await compressImageAsDataUrl(file, 400, 400); // 400x400 for app icons
+      updateArrayItem('applications', index, 'imageUrl', dataUrl);
     } catch (e: any) {
       console.error(e);
       alert("Gagal mengunggah gambar: " + e.message);
@@ -1425,8 +1481,8 @@ export default function AdminDashboard({ onExit }: { onExit?: () => void }) {
                                  if (!file) return;
                                  setSaving(true);
                                  try {
-                                     const downloadUrl = await uploadImageToStorage(file, 'images/org_chart');
-                                     updateSettingNode('profile', 'orgChartImageUrl', downloadUrl);
+                                     const dataUrl = await compressImageAsDataUrl(file, 1200, 1200); // larger for org chart
+                                     updateSettingNode('profile', 'orgChartImageUrl', dataUrl);
                                  } catch (error: any) {
                                      console.error(error);
                                      alert("Gagal mengunggah foto: " + error.message);
@@ -1498,9 +1554,9 @@ export default function AdminDashboard({ onExit }: { onExit?: () => void }) {
                                                  if (!file) return;
                                                  setSaving(true);
                                                  try {
-                                                     const downloadUrl = await uploadImageToStorage(file, 'images/members');
+                                                     const dataUrl = await compressImageAsDataUrl(file, 400, 400); // 400x400 for config member avatars
                                                      const newMembers = [...settings.profile.members];
-                                                     newMembers[idx] = {...newMembers[idx], imageUrl: downloadUrl};
+                                                     newMembers[idx] = {...newMembers[idx], imageUrl: dataUrl};
                                                      updateSettingNode('profile', 'members', newMembers);
                                                  } catch (error: any) {
                                                      console.error(error);
@@ -1580,9 +1636,9 @@ export default function AdminDashboard({ onExit }: { onExit?: () => void }) {
                                if (!file) return;
                                setSaving(true);
                                try {
-                                   const downloadUrl = await uploadImageToStorage(file, 'images/hero_background');
+                                   const dataUrl = await compressImageAsDataUrl(file, 1600, 1000); // for hero background
                                    const currentImages = settings.hero?.backgroundImages || [];
-                                   updateSettingNode('hero', 'backgroundImages', [...currentImages, downloadUrl]);
+                                   updateSettingNode('hero', 'backgroundImages', [...currentImages, dataUrl]);
                                } catch (error: any) {
                                    console.error(error);
                                    alert("Gagal mengunggah gambar: " + error.message);
@@ -2157,11 +2213,13 @@ export default function AdminDashboard({ onExit }: { onExit?: () => void }) {
               </div>
             )}
             
-            <div className="pt-4 pb-12 sticky bottom-0 bg-slate-50 border-t mt-8">
-               <button onClick={handleSave} disabled={saving} className="w-full shadow-lg bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold px-6 py-3 rounded-lg">
-                 {saving ? 'Menyimpan Perubahan...' : 'Simpan Semua Perubahan'}
-               </button>
-            </div>
+            {activeTab !== 'panduan' && activeTab !== 'skm_surveys' && (
+              <div className="pt-4 pb-12 sticky bottom-0 bg-slate-50 border-t mt-8 z-40">
+                 <button onClick={handleSave} disabled={saving} className="w-full shadow-lg bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold px-6 py-3 rounded-lg">
+                   {saving ? 'Menyimpan Perubahan...' : 'Simpan Semua Perubahan'}
+                 </button>
+              </div>
+            )}
           </div>
         </div>
       )}
