@@ -1,0 +1,132 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Core Primitives ---
+    function isSignedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 'mutohar.fauzi@gmail.com' ||
+        request.auth.token.email == 'kepegawaian@untidar.ac.id' ||
+        (exists(/databases/$(database)/documents/admin_config/main) &&
+         request.auth.token.email in get(/databases/$(database)/documents/admin_config/main).data.emails)
+      );
+    }
+
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+
+    // --- Entity Validation Blueprints ---
+    function isValidSiteSettings(data) {
+      return data.keys().hasAll(['header', 'hero', 'footer', 'updatedAt']) &&
+             data.header is map &&
+             data.hero is map &&
+             data.footer is map &&
+             (!data.keys().hasAny(['announcements']) || data.announcements is list) &&
+             (!data.keys().hasAny(['recentDocuments']) || data.recentDocuments is list) &&
+             (!data.keys().hasAny(['applications']) || data.applications is list) &&
+             (!data.keys().hasAny(['services']) || data.services is list) &&
+             data.updatedAt == request.time;
+    }
+
+    function isValidAnnouncement(data) {
+      return data.keys().hasAll(['title', 'date', 'tag']) &&
+             data.title is string && data.title.size() <= 200 &&
+             data.date is string && data.date.size() <= 50 &&
+             data.tag is string && data.tag.size() <= 50;
+    }
+
+    function isValidDocument(data) {
+      return data.keys().hasAll(['title', 'type', 'date']) &&
+             data.title is string && data.title.size() <= 300 &&
+             data.type is string && data.type.size() <= 100 &&
+             data.date is string && data.date.size() <= 50;
+    }
+
+    function isValidApplication(data) {
+      return data.keys().hasAll(['title', 'desc', 'icon', 'color', 'url']) &&
+             data.title is string && data.title.size() <= 100 &&
+             data.desc is string && data.desc.size() <= 300 &&
+             data.icon is string && data.icon.size() <= 50 &&
+             data.color is string && data.color.size() <= 50 &&
+             data.url is string && data.url.size() <= 500;
+    }
+    
+    function isValidAdminConfig(data) {
+       return data.keys().hasAll(['emails', 'updatedAt']) &&
+              data.emails is list &&
+              (data.emails.size() == 0 || (data.emails.size() > 0 && data.emails[0] is string)) &&
+              data.emails.size() <= 100 &&
+              data.updatedAt == request.time;
+    }
+
+    function isValidServiceDetail(data) {
+      return data.keys().hasAll(['title', 'description', 'dasarHukum', 'pengertian', 'alurSteps', 'pic', 'updatedAt']) &&
+             data.title is string && data.title.size() <= 200 &&
+             data.description is string && data.description.size() <= 2000 &&
+             data.dasarHukum is list &&
+             data.pengertian is string && data.pengertian.size() <= 2000 &&
+             data.alurSteps is list &&
+             data.pic is string && data.pic.size() <= 200 &&
+             (!data.keys().hasAny(['jenisKenaikanPangkat']) || data.jenisKenaikanPangkat is list) &&
+             data.updatedAt == request.time;
+    }
+
+    // --- Paths ---
+    match /site_settings/main {
+      allow read: if true;
+      allow create: if isAdmin() && isValidSiteSettings(incoming());
+      allow update: if isAdmin() && isValidSiteSettings(incoming()) && incoming().diff(existing()).affectedKeys().hasAny(['header', 'hero', 'footer', 'announcements', 'recentDocuments', 'applications', 'services', 'updatedAt']);
+      allow delete: if isAdmin();
+    }
+
+    match /announcements/{announcementId} {
+      allow read: if true; // Public read
+      allow create: if isAdmin() && isValidId(announcementId) && isValidAnnouncement(incoming()) && incoming().createdAt == request.time && incoming().updatedAt == request.time;
+      allow update: if isAdmin() && isValidId(announcementId) && isValidAnnouncement(incoming()) && incoming().createdAt == existing().createdAt && incoming().updatedAt == request.time;
+      allow delete: if isAdmin() && isValidId(announcementId);
+    }
+
+    match /documents/{documentId} {
+      allow read: if true; // Public read
+      allow create: if isAdmin() && isValidId(documentId) && isValidDocument(incoming()) && incoming().createdAt == request.time && incoming().updatedAt == request.time;
+      allow update: if isAdmin() && isValidId(documentId) && isValidDocument(incoming()) && incoming().createdAt == existing().createdAt && incoming().updatedAt == request.time;
+      allow delete: if isAdmin() && isValidId(documentId);
+    }
+
+    match /applications/{appId} {
+      allow read: if true; // Public read
+      allow create: if isAdmin() && isValidId(appId) && isValidApplication(incoming()) && incoming().createdAt == request.time && incoming().updatedAt == request.time;
+      allow update: if isAdmin() && isValidId(appId) && isValidApplication(incoming()) && incoming().createdAt == existing().createdAt && incoming().updatedAt == request.time;
+      allow delete: if isAdmin() && isValidId(appId);
+    }
+
+    match /admin_config/main {
+      allow read: if isAdmin();
+      allow create: if isAdmin() && isValidAdminConfig(incoming());
+      allow update: if isAdmin() && isValidAdminConfig(incoming());
+    }
+
+    match /service_details/{serviceId} {
+      allow read: if true;
+      allow write: if isAdmin() && isValidId(serviceId) && isValidServiceDetail(incoming());
+    }
+    match /skm_surveys/{surveyId} {
+      allow read: if isAdmin();
+      allow create: if true; 
+    }
+    match /settings/stats {
+      allow read: if true;
+      allow create: if true && incoming().visitCount == 1 && incoming().keys().hasAll(['visitCount']);
+      allow update: if true && incoming().diff(existing()).affectedKeys().hasOnly(['visitCount', 'lastVisitAt']) && (incoming().visitCount is number);
+    }
+  }
+}

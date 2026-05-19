@@ -1,0 +1,6 @@
+{
+  "name": "Portal SDM UNTIDAR",
+  "description": "Portal Layanan Tata Laksana dan Kepegawaian Universitas Tidar. Akses cepat ke aplikasi kepegawaian, dokumen, dan panduan SOP.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

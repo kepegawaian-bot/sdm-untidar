@@ -1,0 +1,106 @@
+{
+  "entities": {
+    "SiteSettings": {
+      "title": "Site Settings",
+      "description": "Global settings for the portal",
+      "type": "object",
+      "properties": {
+        "header": {
+          "type": "object",
+          "properties": {
+            "title": { "type": "string" },
+            "subtitle": { "type": "string" },
+            "department": { "type": "string" },
+            "ministry": { "type": "string" }
+          }
+        },
+        "hero": {
+          "type": "object",
+          "properties": {
+            "title": { "type": "string" },
+            "description": { "type": "string" },
+            "searchPlaceholder": { "type": "string" }
+          }
+        },
+        "footer": {
+          "type": "object",
+          "properties": {
+            "address": { "type": "string" },
+            "phone": { "type": "string" },
+            "email": { "type": "string" }
+          }
+        },
+        "updatedAt": { "type": "string" }
+      }
+    },
+    "Announcement": {
+      "title": "Announcement",
+      "description": "News or announcement item",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "maxLength": 200 },
+        "date": { "type": "string", "maxLength": 50 },
+        "tag": { "type": "string", "maxLength": 50 },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      }
+    },
+    "Document": {
+      "title": "Document",
+      "description": "Recent document or repository item",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "maxLength": 300 },
+        "type": { "type": "string", "maxLength": 100 },
+        "date": { "type": "string", "maxLength": 50 },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      }
+    },
+    "Application": {
+      "title": "Application",
+      "description": "Main application link",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "maxLength": 100 },
+        "desc": { "type": "string", "maxLength": 300 },
+        "icon": { "type": "string", "maxLength": 50 },
+        "color": { "type": "string", "maxLength": 50 },
+        "url": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      }
+    },
+    "AdminConfig": {
+      "title": "Admin Config",
+      "description": "List of admin emails",
+      "type": "object",
+      "properties": {
+        "emails": { "type": "array", "items": { "type": "string" } },
+        "updatedAt": { "type": "string" }
+      }
+    }
+  },
+  "firestore": {
+    "/site_settings/main": {
+      "schema": "SiteSettings",
+      "description": "Singleton document for global site settings"
+    },
+    "/announcements/{announcementId}": {
+      "schema": "Announcement",
+      "description": "Collection of announcements"
+    },
+    "/documents/{documentId}": {
+      "schema": "Document",
+      "description": "Collection of recent documents"
+    },
+    "/applications/{appId}": {
+      "schema": "Application",
+      "description": "Collection of main applications"
+    },
+    "/admin_config/main": {
+      "schema": "AdminConfig",
+      "description": "Singleton document storing admin emails"
+    }
+  }
+}
