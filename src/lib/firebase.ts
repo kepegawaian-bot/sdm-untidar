@@ -10,13 +10,15 @@ console.log('Firebase Config Loaded:', {
   hasStorage: !!firebaseConfig.storageBucket,
   storageBucket: firebaseConfig.storageBucket 
 });
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+// Initialize Firestore with Database ID if provided
+const firestoreDbId = (firebaseConfig as any).firestoreDatabaseId || '(default)';
+export const db = getFirestore(app, firestoreDbId);
 export const auth = getAuth(app);
 export let storage: any;
 try {
   storage = getStorage(app, firebaseConfig.storageBucket);
 } catch (error) {
-  console.error('Firebase Storage initialization failed. Make sure storageBucket is set and Storage is enabled in Firebase Console.', error);
+  console.error('Firebase Storage initialization failed.', error);
 }
 export const provider = new GoogleAuthProvider();
 provider.setCustomParameters({
@@ -69,15 +71,3 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
   console.error('Firestore Error: ', JSON.stringify(errInfo));
   throw new Error(JSON.stringify(errInfo));
 }
-
-// Validate connection on start
-async function testConnection() {
-  try {
-    await getDocFromServer(doc(db, 'test', 'connection'));
-  } catch (error) {
-    if(error instanceof Error && error.message.includes('the client is offline')) {
-      console.error("Please check your Firebase configuration.");
-    }
-  }
-}
-testConnection();

@@ -70,15 +70,18 @@ function usePdfUrl(url: string | undefined): string | undefined {
     let createdUrl = '';
 
     fetch(url)
-      .then(res => res.blob())
+      .then(res => {
+        if (!res.ok) throw new Error("Fetch failed");
+        return res.blob();
+      })
       .then(blob => {
         if (!isMounted) return;
         createdUrl = URL.createObjectURL(blob);
         setBlobUrl(createdUrl);
       })
       .catch(e => {
-        console.error("Failed to convert data URL to blob", e);
-        if (isMounted) setBlobUrl(url);
+        console.error("Failed to conversion to blob:", e);
+        if (isMounted) setBlobUrl(url); // Fallback to raw URL
       });
 
     return () => {
@@ -360,9 +363,10 @@ function PanduanEditor({ services, settings }: { services: any[], settings: any 
             alert('Detail Panduan Layanan Berhasil Disimpan!');
           } catch(e: any) { 
             console.error("Gagal menyimpan:", e);
-            alert(`Gagal menyimpan data. Pastikan ukuran dokumen SOP (Base64) tidak terlalu besar. Error: ${e.message}`);
+            alert(`Gagal menyimpan data. Pastikan koneksi internet Anda stabil. Error: ${e.message}`);
+          } finally {
+            setSaving(false);
           }
-          setSaving(false);
         }} 
         disabled={saving}
         className="fixed bottom-24 right-8 z-[100] bg-blue-600 text-white px-8 py-4 rounded-full shadow-2xl shadow-blue-600/50 hover:bg-blue-700 hover:scale-105 active:scale-95 transition-all flex items-center gap-3 font-black border-4 border-white ring-8 ring-blue-600/10"
@@ -652,32 +656,34 @@ function PanduanEditor({ services, settings }: { services: any[], settings: any 
                               const storageRef = ref(storage, `sops/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.\-_]/g, '')}`);
                               const uploadTask = uploadBytesResumable(storageRef, file);
                               
-                              const downloadUrl = await new Promise<string>((resolve, reject) => {
-                                uploadTask.on('state_changed', 
-                                  (snapshot) => {
-                                    const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-                                    console.log('Upload is ' + Math.round(progress) + '% done');
-                                  }, 
-                                  reject,
-                                  async () => {
-                                    try {
-                                      const url = await getDownloadURL(uploadTask.snapshot.ref);
-                                      resolve(url);
-                                    } catch (e) {
-                                      reject(e);
+                              const downloadUrl = await Promise.race([
+                                new Promise<string>((resolve, reject) => {
+                                  uploadTask.on('state_changed', 
+                                    (snapshot) => {
+                                      // Progress can be monitored if needed
+                                    }, 
+                                    reject,
+                                    async () => {
+                                      try {
+                                        const url = await getDownloadURL(uploadTask.snapshot.ref);
+                                        resolve(url);
+                                      } catch (e) {
+                                        reject(e);
+                                      }
                                     }
-                                  }
-                                );
-                              });
+                                  );
+                                }),
+                                new Promise<string>((_, reject) => setTimeout(() => reject(new Error("Timeout: Unggah file terlalu lama. Periksa koneksi Anda.")), 60000))
+                              ]);
                               
                               setDetail(prev => ({...prev, sopUrl: downloadUrl}));
                               alert("Berhasil mengunggah dokumen!");
                             } catch (error: any) {
                               console.error("Upload error details:", error);
-                              alert("Gagal mengunggah file ke server. Error: " + error.message);
+                              alert("Gagal mengunggah file. Error: " + error.message);
                             } finally {
                               setSaving(false);
-                              e.target.value = '';
+                              if (e.target) e.target.value = '';
                             }
                           }}
                         />
@@ -824,8 +830,9 @@ function PanduanEditor({ services, settings }: { services: any[], settings: any 
                     msg = "Hak akses ditolak. Anda tidak memiliki izin untuk menyimpan perubahan ini.";
                  }
                  alert(`Gagal menyimpan data. Error: ${msg}`);
+               } finally {
+                 setSaving(false);
                }
-               setSaving(false);
              }} 
              disabled={saving} 
              className="w-full bg-blue-600 text-white px-8 py-4 rounded-2xl font-black shadow-xl shadow-blue-600/30 hover:bg-blue-700 transition-all flex items-center justify-center gap-2 text-lg border-2 border-blue-500"
