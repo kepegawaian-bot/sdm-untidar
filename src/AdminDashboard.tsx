@@ -624,35 +624,28 @@ function PanduanEditor({ services, settings }: { services: any[], settings: any 
                           type="file" 
                           accept="application/pdf,image/*" 
                           className="hidden" 
-                          onChange={(e) => {
+                          onChange={async (e) => {
                             const file = e.target.files?.[0];
                             if (!file) return;
                             
-                            // Batas wajar untuk base64 di Firestore adalah maksimum 1MB per dokumen.
-                            // Oleh karena itu kami batasi file size menjadi 600KB agar aman.
-                            if (file.size > 600 * 1024) {
-                              alert("Ukuran file melebihi batas 600KB. Karena disimpan langsung di database, harap kompres PDF Anda terlebih dahulu, atau gunakan Google Drive dan salin link-nya.");
-                              // Clear the input value so user can try again
+                            if (file.size > 5 * 1024 * 1024) {
+                              alert("Ukuran file melebihi batas 5MB. Harap kompres PDF Anda terlebih dahulu.");
                               e.target.value = '';
                               return;
                             }
 
                             setSaving(true);
                             try {
-                              const reader = new FileReader();
-                              reader.onloadend = () => {
-                                setDetail({...detail, sopUrl: reader.result as string});
-                                alert("Berhasil menyiapkan dokumen! Silakan klik 'SIMPAN PERUBAHAN' untuk memperbarui.");
-                                setSaving(false);
-                              };
-                              reader.onerror = () => {
-                                alert("Gagal membaca file.");
-                                setSaving(false);
-                              };
-                              reader.readAsDataURL(file);
-                            } catch (error) {
+                              const storageRef = ref(storage, `sops/${Date.now()}_${file.name}`);
+                              const snapshot = await uploadBytes(storageRef, file);
+                              const downloadUrl = await getDownloadURL(snapshot.ref);
+                              
+                              setDetail({...detail, sopUrl: downloadUrl});
+                              alert("Berhasil mengunggah dokumen! Silakan klik 'SIMPAN PERUBAHAN' untuk memperbarui.");
+                            } catch (error: any) {
                               console.error("Upload error:", error);
-                              alert("Gagal memproses file.");
+                              alert("Gagal memproses file. Error: " + error.message);
+                            } finally {
                               setSaving(false);
                             }
                           }}
@@ -1307,43 +1300,26 @@ export default function AdminDashboard({ onExit }: { onExit?: () => void }) {
     }
   };
 
-  const handleImageUpload = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
+  const uploadImageToStorage = async (file: File, pathPrefix: string): Promise<string> => {
+    const storageRef = ref(storage, `${pathPrefix}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.\-_]/g, '')}`);
+    const snapshot = await uploadBytes(storageRef, file);
+    return await getDownloadURL(snapshot.ref);
+  };
+
+  const handleImageUpload = async (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-        const img = new window.Image();
-        img.onload = () => {
-            const canvas = document.createElement('canvas');
-            const MAX_WIDTH = 400; // Allow a bit larger for better quality, 400px is typical
-            const MAX_HEIGHT = 400;
-            let width = img.width;
-            let height = img.height;
-
-            if (width > height) {
-                if (width > MAX_WIDTH) {
-                    height *= MAX_WIDTH / width;
-                    width = MAX_WIDTH;
-                }
-            } else {
-                if (height > MAX_HEIGHT) {
-                    width *= MAX_HEIGHT / height;
-                    height = MAX_HEIGHT;
-                }
-            }
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext('2d');
-            ctx?.drawImage(img, 0, 0, width, height);
-            
-            // Generate WebP or JPEG to save space. We'll use WebP.
-            const dataUrl = canvas.toDataURL('image/webp', 0.8);
-            updateArrayItem('applications', index, 'imageUrl', dataUrl);
-        };
-        img.src = event.target?.result as string;
-    };
-    reader.readAsDataURL(file);
+    setSaving(true);
+    try {
+      const downloadUrl = await uploadImageToStorage(file, 'images/apps');
+      updateArrayItem('applications', index, 'imageUrl', downloadUrl);
+    } catch (e: any) {
+      console.error(e);
+      alert("Gagal mengunggah gambar: " + e.message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (loading) return <div className="p-10">Memuat...</div>;
@@ -1444,14 +1420,19 @@ export default function AdminDashboard({ onExit }: { onExit?: () => void }) {
                       <div className="flex gap-2 items-center border border-slate-300 rounded px-2 bg-white p-2">
                           <label className="text-sm font-medium text-slate-600 bg-slate-100 px-3 py-2 rounded cursor-pointer hover:bg-slate-200 truncate flex-1 text-center font-mono">
                               {settings.profile?.orgChartImageUrl ? "Ganti Gambar" : "Upload Gambar"}
-                              <input type="file" accept="image/*" onChange={(e) => {
+                              <input type="file" accept="image/*" onChange={async (e) => {
                                  const file = e.target.files?.[0];
                                  if (!file) return;
-                                 const reader = new FileReader();
-                                 reader.onload = (event) => {
-                                     updateSettingNode('profile', 'orgChartImageUrl', event.target?.result as string);
-                                 };
-                                 reader.readAsDataURL(file);
+                                 setSaving(true);
+                                 try {
+                                     const downloadUrl = await uploadImageToStorage(file, 'images/org_chart');
+                                     updateSettingNode('profile', 'orgChartImageUrl', downloadUrl);
+                                 } catch (error: any) {
+                                     console.error(error);
+                                     alert("Gagal mengunggah foto: " + error.message);
+                                 } finally {
+                                     setSaving(false);
+                                 }
                               }} className="hidden" />
                           </label>
                           {settings.profile?.orgChartImageUrl && (
@@ -1512,16 +1493,21 @@ export default function AdminDashboard({ onExit }: { onExit?: () => void }) {
                                            </div>
                                            <label className="shrink-0 text-xs bg-white border border-slate-200 shadow-sm px-3 py-2 rounded cursor-pointer hover:bg-slate-100 transition-colors font-semibold">
                                               Foto
-                                              <input type="file" accept="image/*" onChange={(e) => {
+                                              <input type="file" accept="image/*" onChange={async (e) => {
                                                  const file = e.target.files?.[0];
                                                  if (!file) return;
-                                                 const reader = new FileReader();
-                                                 reader.onload = (event) => {
+                                                 setSaving(true);
+                                                 try {
+                                                     const downloadUrl = await uploadImageToStorage(file, 'images/members');
                                                      const newMembers = [...settings.profile.members];
-                                                     newMembers[idx] = {...newMembers[idx], imageUrl: event.target?.result as string};
+                                                     newMembers[idx] = {...newMembers[idx], imageUrl: downloadUrl};
                                                      updateSettingNode('profile', 'members', newMembers);
-                                                 };
-                                                 reader.readAsDataURL(file);
+                                                 } catch (error: any) {
+                                                     console.error(error);
+                                                     alert("Gagal mengunggah foto: " + error.message);
+                                                 } finally {
+                                                     setSaving(false);
+                                                 }
                                               }} className="hidden" />
                                            </label>
                                            <button onClick={() => {
@@ -1572,6 +1558,40 @@ export default function AdminDashboard({ onExit }: { onExit?: () => void }) {
                      <div>
                        <label className="block text-xs font-semibold text-slate-500 mb-1">Deskripsi</label>
                        <textarea value={settings.hero?.description} onChange={(e) => updateSettingNode('hero', 'description', e.target.value)} className="w-full border rounded px-3 py-2 text-sm h-24" />
+                     </div>
+                     <div>
+                       <label className="block text-sm font-bold text-slate-700 mb-2 mt-4">Background Slideshow (Foto)</label>
+                       <p className="text-xs text-slate-500 mb-2">Upload beberapa foto untuk dijadikan animasi slideshow di background banner utama.</p>
+                       <div className="space-y-2">
+                         {settings.hero?.backgroundImages?.map((img: string, idx: number) => (
+                           <div key={idx} className="flex gap-2 items-center p-2 border rounded bg-slate-50">
+                              <img src={img} className="w-16 h-10 object-cover rounded" />
+                              <input value={img || ''} readOnly className="flex-1 bg-transparent text-xs text-slate-500 border-none outline-none" />
+                              <button onClick={() => {
+                                 const newImages = settings.hero.backgroundImages.filter((_: any, i: number) => i !== idx);
+                                 updateSettingNode('hero', 'backgroundImages', newImages);
+                              }} className="text-red-400 hover:text-red-600 p-1"><Trash className="w-4 h-4"/></button>
+                           </div>
+                         ))}
+                         <label className="block w-full text-center text-sm bg-blue-50 text-blue-600 py-3 rounded-lg font-bold border border-blue-100 hover:bg-blue-100 transition-colors border-dashed cursor-pointer">
+                           + Tambah Foto Background
+                           <input type="file" accept="image/*" onChange={async (e) => {
+                               const file = e.target.files?.[0];
+                               if (!file) return;
+                               setSaving(true);
+                               try {
+                                   const downloadUrl = await uploadImageToStorage(file, 'images/hero_background');
+                                   const currentImages = settings.hero?.backgroundImages || [];
+                                   updateSettingNode('hero', 'backgroundImages', [...currentImages, downloadUrl]);
+                               } catch (error: any) {
+                                   console.error(error);
+                                   alert("Gagal mengunggah gambar: " + error.message);
+                               } finally {
+                                   setSaving(false);
+                               }
+                           }} className="hidden" />
+                         </label>
+                       </div>
                      </div>
                    </div>
                 </div>

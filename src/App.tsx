@@ -539,7 +539,20 @@ function BeholdWidgetWrapper({ html }: { html: string }) {
 function BerandaView({ setActiveTab, content, visitCount }: { setActiveTab: (tab: Tab) => void, content: any, visitCount: number | null }) {
   if (!content) return null;
   const [searchQuery, setSearchQuery] = useState('');
+  const [currentBgIndex, setCurrentBgIndex] = useState(0);
   const applications = content.applications || [];
+  const heroImages = content.hero?.backgroundImages && content.hero.backgroundImages.length > 0 
+                     ? content.hero.backgroundImages 
+                     : ["https://images.unsplash.com/photo-1541339907198-e08756dedf3f?q=80&w=2070&auto=format&fit=crop"];
+
+  useEffect(() => {
+    if (heroImages.length > 1) {
+      const interval = setInterval(() => {
+        setCurrentBgIndex((prev) => (prev + 1) % heroImages.length);
+      }, 5000); // Change image every 5 seconds
+      return () => clearInterval(interval);
+    }
+  }, [heroImages.length]);
   
   const filteredApps = searchQuery.trim() === '' 
     ? applications 
@@ -564,7 +577,21 @@ function BerandaView({ setActiveTab, content, visitCount }: { setActiveTab: (tab
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-1000">
       {/* Hero Section */}
       <section className="relative pt-24 pb-20 lg:pt-40 lg:pb-32 overflow-hidden bg-[#0f172a] border-b-8 border-amber-500 rounded-b-[3rem] md:rounded-b-[4rem] shadow-2xl">
-        <div className="absolute inset-0 opacity-50 mix-blend-multiply scale-110 motion-safe:animate-[pulse_10s_ease-in-out_infinite] bg-[url('https://images.unsplash.com/photo-1541339907198-e08756dedf3f?q=80&w=2070&auto=format&fit=crop')] bg-cover bg-center" />
+        <AnimatePresence mode="popLayout">
+          {heroImages.map((img: string, idx: number) => (
+            idx === currentBgIndex && (
+              <motion.div 
+                key={idx}
+                initial={{ opacity: 0, scale: 1.05 }}
+                animate={{ opacity: 0.5, scale: 1.1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 1.5, ease: "easeInOut" }}
+                className="absolute inset-0 mix-blend-multiply bg-cover bg-center"
+                style={{ backgroundImage: `url(${img})` }}
+              />
+            )
+          ))}
+        </AnimatePresence>
         <div className="absolute inset-0 bg-gradient-to-tr from-slate-950 via-slate-900/90 to-transparent" />
         
         {/* Floating Decorative Elements for Hero */}
@@ -1811,26 +1838,26 @@ function ProfilView({ content }: { content: any }) {
         <motion.div 
           whileHover={{ y: -8, scale: 1.02 }}
           className={cn(
-            "relative rounded-[2rem] border border-white/40 glass overflow-hidden flex flex-col shrink-0 transition-all duration-500 hover:shadow-2xl hover:shadow-slate-300/40 group/card", 
-            type === 'leader' ? 'w-48 h-64' : type === 'deputy' ? 'w-44 h-60' : 'w-40 h-56'
+            "relative rounded-[1.5rem] border border-white/40 glass overflow-hidden flex flex-col shrink-0 transition-all duration-500 hover:shadow-2xl hover:shadow-slate-300/40 group/card", 
+            type === 'leader' ? 'w-40 h-52' : type === 'deputy' ? 'w-36 h-48' : 'w-32 h-44'
           )}
         >
             {/* Photo */}
-            <div className="h-[65%] w-full overflow-hidden bg-slate-50 flex items-center justify-center relative">
+            <div className="h-[60%] w-full overflow-hidden bg-slate-50 flex items-center justify-center relative">
               {member.imageUrl ? (
                   <img src={member.imageUrl} alt={member.name} className="w-full h-full object-cover grayscale opacity-80 group-hover/card:grayscale-0 group-hover/card:opacity-100 transition-all duration-1000" />
               ) : (
                   <div className="w-full h-full bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center">
-                    <Users className="w-16 h-16 text-slate-300 group-hover/card:text-amber-500 transition-colors duration-500" />
+                    <Users className="w-12 h-12 text-slate-300 group-hover/card:text-amber-500 transition-colors duration-500" />
                   </div>
               )}
               <div className="absolute inset-0 bg-gradient-to-t from-white via-white/20 to-transparent group-hover/card:via-transparent transition-all duration-700" />
             </div>
             
             {/* Information */}
-            <div className="relative z-10 flex-1 p-4 pt-0 text-center flex flex-col justify-center">
-              <div className="font-black text-[8px] uppercase tracking-[0.3em] text-amber-600 mb-1 line-clamp-2">{member.role || (type === 'leader' ? 'Ketua Tim' : type === 'deputy' ? 'Sekretariat' : 'Anggota')}</div>
-              <div className="font-black text-xs tracking-tighter text-slate-900 line-clamp-2 leading-tight uppercase group-hover/card:text-amber-700 transition-colors">{member.name}</div>
+            <div className="relative z-10 flex-1 p-3 pt-0 text-center flex flex-col justify-center">
+              <div className="font-bold text-[8px] uppercase tracking-[0.2em] text-amber-600 mb-0.5 line-clamp-2">{member.role || (type === 'leader' ? 'Ketua Tim' : type === 'deputy' ? 'Sekretariat' : 'Anggota')}</div>
+              <div className="font-black text-[11px] tracking-tight text-slate-900 line-clamp-2 leading-tight uppercase group-hover/card:text-amber-700 transition-colors">{member.name}</div>
             </div>
         </motion.div>
     );
