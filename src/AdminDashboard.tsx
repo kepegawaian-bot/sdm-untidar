@@ -648,7 +648,6 @@ function PanduanEditor({ services, settings }: { services: any[], settings: any 
                               return;
                             }
                             console.log("Starting upload to storage for file:", file.name, "Size:", file.size);
-                            setSaving(true);
                             try {
                               const storageRef = ref(storage, `sops/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.\-_]/g, '')}`);
                               const uploadTask = uploadBytesResumable(storageRef, file);
@@ -657,7 +656,7 @@ function PanduanEditor({ services, settings }: { services: any[], settings: any 
                                 uploadTask.on('state_changed', 
                                   (snapshot) => {
                                     const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-                                    console.log('Upload is ' + progress + '% done');
+                                    console.log('Upload is ' + Math.round(progress) + '% done');
                                   }, 
                                   reject,
                                   async () => {
@@ -671,7 +670,7 @@ function PanduanEditor({ services, settings }: { services: any[], settings: any 
                                 );
                               });
                               
-                              setDetail({...detail, sopUrl: downloadUrl});
+                              setDetail(prev => ({...prev, sopUrl: downloadUrl}));
                               alert("Berhasil mengunggah dokumen!");
                             } catch (error: any) {
                               console.error("Upload error details:", error);
@@ -741,7 +740,7 @@ function PanduanEditor({ services, settings }: { services: any[], settings: any 
                     )}
                   </div>
                 )}
-                <p className="text-xs text-slate-500">File yang diunggah akan disimpan langsung ke database (Base64). Batas maksimum per file adalah 800KB. Jika dokumen lebih besar, disarankan mencantumkan link dari platform berbagi file eksternal Anda.</p>
+                <p className="text-xs text-slate-500">File yang diunggah akan disimpan ke Firebase Storage. Batas maksimum per file adalah 10MB.</p>
              </div>
            ) : (
             <div className="space-y-3">
