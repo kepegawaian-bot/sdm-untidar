@@ -1130,8 +1130,11 @@ export default function AdminDashboard({ onExit }: { onExit?: () => void }) {
     if (!settings) return;
     setSaving(true);
     try {
+      // Ensure we have a clean object for Firestore
+      const dataToSave = JSON.parse(JSON.stringify(settings));
+      
       await setDoc(doc(db, 'site_settings', 'main'), {
-        ...settings,
+        ...dataToSave,
         updatedAt: serverTimestamp()
       });
       alert('Berhasil: Semua perubahan telah tersimpan ke database.');
@@ -1142,12 +1145,7 @@ export default function AdminDashboard({ onExit }: { onExit?: () => void }) {
       if (e.message && e.message.includes("permission-denied")) {
         errorMsg = "Akses Ditolak: Pastikan domain dashboard ini sudah didaftarkan di Firebase Console (Authorized Domains).";
       } else if (e.message) {
-        try {
-          const parsed = JSON.parse(e.message);
-          errorMsg = `Gagal simpan: ${parsed.error}`;
-        } catch {
-          errorMsg = `Gagal simpan: ${e.message}`;
-        }
+        errorMsg = `Gagal simpan: ${e.message}`;
       }
       
       alert(errorMsg);
@@ -1553,9 +1551,12 @@ export default function AdminDashboard({ onExit }: { onExit?: () => void }) {
                                   <div className="flex items-center gap-4 w-2/3">
                                     <div className="flex flex-col gap-2">
                                       <select value={kat.icon || "AppWindow"} onChange={(e) => {
-                                         const newServices = [...settings.services];
-                                         newServices[i] = { ...newServices[i], icon: e.target.value };
-                                         setSettings({ ...settings, services: newServices });
+                                         const val = e.target.value;
+                                         setSettings(prev => {
+                                           const newServices = [...prev.services];
+                                           newServices[i] = { ...newServices[i], icon: val };
+                                           return { ...prev, services: newServices };
+                                         });
                                       }} className="border rounded p-1 text-xs bg-slate-50">
                                         <option value="Briefcase">Briefcase</option>
                                         <option value="HeartPlus">HeartPlus</option>
@@ -1566,9 +1567,12 @@ export default function AdminDashboard({ onExit }: { onExit?: () => void }) {
                                         <option value="AppWindow">Default Icon</option>
                                       </select>
                                       <select value={kat.color || "blue"} onChange={(e) => {
-                                         const newServices = [...settings.services];
-                                         newServices[i] = { ...newServices[i], color: e.target.value };
-                                         setSettings({ ...settings, services: newServices });
+                                         const val = e.target.value;
+                                         setSettings(prev => {
+                                           const newServices = [...prev.services];
+                                           newServices[i] = { ...newServices[i], color: val };
+                                           return { ...prev, services: newServices };
+                                         });
                                       }} className="border rounded p-1 text-xs bg-slate-50">
                                         <option value="blue">Blue (Karier)</option>
                                         <option value="rose">Rose (Kesejahteraan)</option>
@@ -1579,30 +1583,37 @@ export default function AdminDashboard({ onExit }: { onExit?: () => void }) {
                                       </select>
                                     </div>
                                     <input value={kat.category} onChange={(e) => {
-                                       const newServices = [...settings.services];
-                                       newServices[i] = { ...newServices[i], category: e.target.value };
-                                       setSettings({ ...settings, services: newServices });
+                                       const val = e.target.value;
+                                       setSettings(prev => {
+                                         const newServices = [...prev.services];
+                                         newServices[i] = { ...newServices[i], category: val };
+                                         return { ...prev, services: newServices };
+                                       });
                                     }} className="font-bold text-lg text-slate-800 bg-transparent border-b border-slate-300 px-1 py-1 w-full focus:outline-none focus:border-blue-500" placeholder="Kategori Utama" />
                                   </div>
                                   <div className="flex items-center gap-2">
                                     <button onClick={() => {
-                                        const newServices = [...settings.services];
-                                        const newSub = { title: 'Sub-Kategori Baru', items: [{ title: 'Item Baru', url: '#' }] };
-                                        newServices[i] = { 
-                                          ...newServices[i], 
-                                          subCategories: [...(newServices[i].subCategories || []), newSub],
-                                          items: undefined // Remove flat items if switching to sub-categories
-                                        };
-                                        setSettings({ ...settings, services: newServices });
+                                        setSettings(prev => {
+                                          const newServices = [...prev.services];
+                                          const newSub = { title: 'Sub-Kategori Baru', items: [{ title: 'Item Baru', url: '#' }] };
+                                          newServices[i] = { 
+                                            ...newServices[i], 
+                                            subCategories: [...(newServices[i].subCategories || []), newSub],
+                                            items: undefined
+                                          };
+                                          return { ...prev, services: newServices };
+                                        });
                                     }} className="text-xs bg-amber-50 text-amber-700 font-bold px-3 py-1.5 rounded-lg border border-amber-200">+ Sub-Kategori</button>
                                     <button onClick={() => {
-                                        const newServices = [...settings.services];
-                                        newServices[i] = { 
-                                          ...newServices[i], 
-                                          items: [...(newServices[i].items || []), { title: 'Item Baru', url: '#' }],
-                                          subCategories: undefined // Remove sub-categories if switching to flat
-                                        };
-                                        setSettings({ ...settings, services: newServices });
+                                        setSettings(prev => {
+                                          const newServices = [...prev.services];
+                                          newServices[i] = { 
+                                            ...newServices[i], 
+                                            items: [...(newServices[i].items || []), { title: 'Item Baru', url: '#' }],
+                                            subCategories: undefined
+                                          };
+                                          return { ...prev, services: newServices };
+                                        });
                                     }} className="text-xs bg-blue-50 text-blue-700 font-bold px-3 py-1.5 rounded-lg border border-blue-200">+ Item Langsung</button>
                                     <button onClick={() => removeArrayItem('services', i)} className="text-red-500 p-2 hover:bg-red-50 rounded-full transition-colors"><Trash className="w-4 h-4"/></button>
                                   </div>
@@ -1614,19 +1625,27 @@ export default function AdminDashboard({ onExit }: { onExit?: () => void }) {
                                     {kat.items.map((item: any, j: number) => (
                                       <div key={j} className="flex gap-2 items-center bg-slate-50 p-2 rounded-xl border border-slate-100">
                                          <input value={item.title} onChange={(e) => {
-                                            const newServices = [...settings.services];
-                                            newServices[i].items[j] = { ...newServices[i].items[j], title: e.target.value };
-                                            setSettings({ ...settings, services: newServices });
+                                            const val = e.target.value;
+                                            setSettings(prev => {
+                                              const newServices = [...prev.services];
+                                              newServices[i].items[j] = { ...newServices[i].items[j], title: val };
+                                              return { ...prev, services: newServices };
+                                            });
                                          }} className="flex-1 border rounded px-3 py-1.5 text-sm" placeholder="Nama Layanan" />
                                          <input value={item.url} onChange={(e) => {
-                                            const newServices = [...settings.services];
-                                            newServices[i].items[j] = { ...newServices[i].items[j], url: e.target.value };
-                                            setSettings({ ...settings, services: newServices });
+                                            const val = e.target.value;
+                                            setSettings(prev => {
+                                              const newServices = [...prev.services];
+                                              newServices[i].items[j] = { ...newServices[i].items[j], url: val };
+                                              return { ...prev, services: newServices };
+                                            });
                                          }} className="flex-1 border rounded px-3 py-1.5 text-sm text-slate-500" placeholder="Link URL" />
                                          <button onClick={() => {
-                                            const newServices = [...settings.services];
-                                            newServices[i].items.splice(j, 1);
-                                            setSettings({ ...settings, services: newServices });
+                                            setSettings(prev => {
+                                              const newServices = [...prev.services];
+                                              newServices[i].items.splice(j, 1);
+                                              return { ...prev, services: newServices };
+                                            });
                                          }} className="text-red-400 p-2 hover:bg-white rounded-full"><Trash className="w-4 h-4" /></button>
                                       </div>
                                     ))}
@@ -1640,20 +1659,27 @@ export default function AdminDashboard({ onExit }: { onExit?: () => void }) {
                                       <div key={subIdx} className="bg-slate-50/50 p-4 rounded-xl border border-dashed border-slate-300">
                                         <div className="flex items-center justify-between mb-4">
                                           <input value={sub.title} onChange={(e) => {
-                                            const newServices = [...settings.services];
-                                            newServices[i].subCategories[subIdx] = { ...newServices[i].subCategories[subIdx], title: e.target.value };
-                                            setSettings({ ...settings, services: newServices });
+                                            const val = e.target.value;
+                                            setSettings(prev => {
+                                              const newServices = [...prev.services];
+                                              newServices[i].subCategories[subIdx] = { ...newServices[i].subCategories[subIdx], title: val };
+                                              return { ...prev, services: newServices };
+                                            });
                                           }} className="font-bold text-sm text-slate-600 bg-transparent border-b border-slate-200 outline-none w-1/2 focus:border-blue-400" placeholder="Judul Sub-Kategori" />
                                           <div className="flex items-center gap-2">
                                             <button onClick={() => {
-                                                const newServices = [...settings.services];
-                                                newServices[i].subCategories[subIdx].items = [...(newServices[i].subCategories[subIdx].items || []), { title: 'Item Baru', url: '#' }];
-                                                setSettings({ ...settings, services: newServices });
+                                                setSettings(prev => {
+                                                  const newServices = [...prev.services];
+                                                  newServices[i].subCategories[subIdx].items = [...(newServices[i].subCategories[subIdx].items || []), { title: 'Item Baru', url: '#' }];
+                                                  return { ...prev, services: newServices };
+                                                });
                                             }} className="text-[10px] bg-white border border-slate-200 px-2 py-1 rounded shadow-sm">+ Item</button>
                                             <button onClick={() => {
-                                                const newServices = [...settings.services];
-                                                newServices[i].subCategories.splice(subIdx, 1);
-                                                setSettings({ ...settings, services: newServices });
+                                                setSettings(prev => {
+                                                  const newServices = [...prev.services];
+                                                  newServices[i].subCategories.splice(subIdx, 1);
+                                                  return { ...prev, services: newServices };
+                                                });
                                             }} className="text-red-400 p-1 hover:bg-white rounded"><Trash className="w-3.5 h-3.5" /></button>
                                           </div>
                                         </div>
@@ -1661,19 +1687,27 @@ export default function AdminDashboard({ onExit }: { onExit?: () => void }) {
                                           {sub.items.map((item: any, itemIdx: number) => (
                                             <div key={itemIdx} className="flex gap-2 items-center bg-white p-2 rounded-lg border border-slate-100 shadow-xs">
                                               <input value={item.title} onChange={(e) => {
-                                                const newServices = [...settings.services];
-                                                newServices[i].subCategories[subIdx].items[itemIdx] = { ...newServices[i].subCategories[subIdx].items[itemIdx], title: e.target.value };
-                                                setSettings({ ...settings, services: newServices });
+                                                const val = e.target.value;
+                                                setSettings(prev => {
+                                                  const newServices = [...prev.services];
+                                                  newServices[i].subCategories[subIdx].items[itemIdx] = { ...newServices[i].subCategories[subIdx].items[itemIdx], title: val };
+                                                  return { ...prev, services: newServices };
+                                                });
                                               }} className="flex-1 border rounded px-2 py-1 text-xs" placeholder="Nama Layanan" />
                                               <input value={item.url} onChange={(e) => {
-                                                const newServices = [...settings.services];
-                                                newServices[i].subCategories[subIdx].items[itemIdx] = { ...newServices[i].subCategories[subIdx].items[itemIdx], url: e.target.value };
-                                                setSettings({ ...settings, services: newServices });
+                                                const val = e.target.value;
+                                                setSettings(prev => {
+                                                  const newServices = [...prev.services];
+                                                  newServices[i].subCategories[subIdx].items[itemIdx] = { ...newServices[i].subCategories[subIdx].items[itemIdx], url: val };
+                                                  return { ...prev, services: newServices };
+                                                });
                                               }} className="flex-1 border rounded px-2 py-1 text-xs text-slate-500" placeholder="Link URL" />
                                               <button onClick={() => {
-                                                const newServices = [...settings.services];
-                                                newServices[i].subCategories[subIdx].items.splice(itemIdx, 1);
-                                                setSettings({ ...settings, services: newServices });
+                                                setSettings(prev => {
+                                                  const newServices = [...prev.services];
+                                                  newServices[i].subCategories[subIdx].items.splice(itemIdx, 1);
+                                                  return { ...prev, services: newServices };
+                                                });
                                               }} className="text-red-400 p-1 hover:bg-slate-50 rounded"><Trash className="w-3.5 h-3.5" /></button>
                                             </div>
                                           ))}
@@ -1687,7 +1721,7 @@ export default function AdminDashboard({ onExit }: { onExit?: () => void }) {
                         ))}
                       </SortableContext>
                     </DndContext>
-                    <button onClick={() => setSettings({ ...settings, services: [...(settings.services || []), { category: 'Kategori Baru', icon: 'AppWindow', items: [] }] })} className="w-full text-sm bg-slate-900 text-white py-4 rounded-2xl font-bold hover:bg-slate-800 transition-colors shadow-lg shadow-slate-900/10">+ Tambah Kategori Layanan Baru</button>
+                    <button onClick={() => setSettings(prev => ({ ...prev, services: [...(prev.services || []), { category: 'Kategori Baru', icon: 'AppWindow', items: [] }] }))} className="w-full text-sm bg-slate-900 text-white py-4 rounded-2xl font-bold hover:bg-slate-800 transition-colors shadow-lg shadow-slate-900/10">+ Tambah Kategori Layanan Baru</button>
                  </div>
               </div>
             )}

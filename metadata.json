@@ -1,6 +1,6 @@
 {
   "name": "Portal SDM UNTIDAR",
-  "description": "Portal Layanan Tata Laksana dan Kepegawaian Universitas Tidar. Akses cepat ke aplikasi kepegawaian, dokumen, dan panduan SOP.",
+  "description": "Portal Layanan Tata Laksana dan Kepegawaian Universitas Tidar yang modern dan interaktif. Akses cepat ke aplikasi kepegawaian (SIMPEG, SISTER, E-Kinerja), arsip dokumen, dan panduan SOP cerdas berbasis AI.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

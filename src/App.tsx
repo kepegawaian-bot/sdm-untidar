@@ -49,7 +49,6 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import Markdown from 'react-markdown';
-import { GoogleGenAI } from '@google/genai';
 import { cn } from './lib/utils';
 import { PORTAL_CONTENT } from './data/portalData';
 
@@ -234,7 +233,13 @@ export default function App() {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 font-sans selection:bg-amber-200 selection:text-amber-900 flex flex-col">
+    <div className="min-h-screen bg-mesh text-slate-800 font-sans selection:bg-amber-200 selection:text-amber-900 flex flex-col relative overflow-hidden">
+      {/* Decorative Background Blobs */}
+      <div className="absolute top-0 -left-4 w-72 h-72 bg-blue-300 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob pointer-events-none"></div>
+      <div className="absolute top-0 -right-4 w-72 h-72 bg-amber-300 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000 pointer-events-none"></div>
+      <div className="absolute -bottom-8 left-20 w-72 h-72 bg-emerald-300 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-4000 pointer-events-none"></div>
+      <div className="absolute top-[40%] left-[25%] w-96 h-96 bg-rose-300 rounded-full mix-blend-multiply filter blur-[120px] opacity-10 animate-blob pointer-events-none"></div>
+
       {/* Top Navbar */}
       <header 
         className={cn(
@@ -505,89 +510,149 @@ function BerandaView({ setActiveTab, content, visitCount }: { setActiveTab: (tab
   const categories = Object.keys(groupedApps);
 
   return (
-    <div className="animate-in fade-in duration-700">
+    <div className="animate-in fade-in slide-in-from-bottom-4 duration-1000">
       {/* Hero Section */}
-      <section className="relative pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden bg-slate-900 border-b-8 border-amber-500">
-        <div className="absolute inset-0 opacity-40 mix-blend-multiply bg-[url('https://images.unsplash.com/photo-1541339907198-e08756dedf3f?q=80&w=2070&auto=format&fit=crop')] bg-cover bg-center" />
-        <div className="absolute inset-0 bg-gradient-to-b from-slate-900/60 via-slate-900/80 to-slate-900" />
+      <section className="relative pt-32 pb-24 lg:pt-56 lg:pb-40 overflow-hidden bg-[#0f172a] border-b-8 border-amber-500 rounded-b-[4rem] md:rounded-b-[6rem] shadow-2xl">
+        <div className="absolute inset-0 opacity-50 mix-blend-multiply scale-110 motion-safe:animate-[pulse_10s_ease-in-out_infinite] bg-[url('https://images.unsplash.com/photo-1541339907198-e08756dedf3f?q=80&w=2070&auto=format&fit=crop')] bg-cover bg-center" />
+        <div className="absolute inset-0 bg-gradient-to-tr from-slate-950 via-slate-900/90 to-transparent" />
         
-        <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-white">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-          >
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 text-amber-400 text-sm font-semibold mb-6 backdrop-blur-md border border-white/20 uppercase tracking-widest text-left">
-              {content.header.ministry}
-            </div>
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight mb-6 leading-tight">
-              {content.hero.title}
-            </h1>
-            <p className="text-slate-300 md:text-xl max-w-3xl mx-auto leading-relaxed mb-10 font-light">
-              {content.hero.description}
-            </p>
+        {/* Floating Decorative Elements for Hero */}
+        <div className="absolute top-1/4 right-10 w-64 h-64 bg-amber-500/10 rounded-full blur-[100px] animate-pulse"></div>
+        <div className="absolute bottom-1/4 left-10 w-64 h-64 bg-blue-500/10 rounded-full blur-[100px] animate-pulse animation-delay-2000"></div>
 
-            {/* General Search Bar */}
-            <div className="max-w-3xl mx-auto bg-white p-2 rounded-2xl shadow-2xl flex items-center relative z-10 focus-within:ring-4 focus-within:ring-amber-500/50 transition-all">
-              <Search className="w-8 h-8 text-slate-400 ml-4 hidden sm:block" />
-              <input 
-                type="text" 
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder={content.hero.searchPlaceholder}
-                className="w-full bg-transparent border-none px-4 py-4 md:py-5 text-slate-800 text-lg outline-none placeholder-slate-400 focus:ring-0"
-              />
-              {searchQuery && (
-                <button 
-                  onClick={() => setSearchQuery('')}
-                  className="p-2 mr-2 hover:bg-slate-100 rounded-full transition-colors"
-                >
-                  <X className="w-5 h-5 text-slate-400" />
-                </button>
-              )}
-              <button 
-                onClick={() => {
-                  if (searchQuery.trim() !== '') {
-                    const el = document.getElementById('applications-section');
-                    if (el) el.scrollIntoView({ behavior: 'smooth' });
-                  } else {
-                    setActiveTab('layanan');
-                  }
-                }}
-                className="bg-amber-500 hover:bg-amber-400 text-slate-900 font-bold px-8 py-4 md:py-5 rounded-xl transition-colors flex items-center gap-2 whitespace-nowrap"
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col lg:flex-row items-center gap-12">
+            <div className="flex-1 text-center lg:text-left text-white">
+              <motion.div
+                initial={{ opacity: 0, x: -30 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.8, ease: "easeOut" }}
               >
-                <span>{searchQuery.trim() !== '' ? 'Cari' : 'Layanan'}</span>
-                <ArrowRight className="w-5 h-5 hidden sm:block" />
-              </button>
+                <div className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-white/10 text-amber-300 text-xs font-black mb-8 backdrop-blur-xl border border-white/20 uppercase tracking-[0.2em] shadow-xl shadow-black/20">
+                  {content.header.ministry}
+                </div>
+                <h1 className="text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter mb-8 leading-[0.9] text-transparent bg-clip-text bg-gradient-to-r from-white via-white to-amber-200">
+                  {content.hero.title}
+                </h1>
+                <p className="text-slate-300 md:text-2xl max-w-2xl lg:mx-0 mx-auto leading-relaxed mb-12 font-medium opacity-90">
+                  {content.hero.description}
+                </p>
+
+                {/* Modern Search Bar */}
+                <div className="max-w-2xl lg:mx-0 mx-auto p-1.5 md:p-2 rounded-3xl bg-white/10 backdrop-blur-2xl border border-white/20 shadow-2xl flex items-center relative z-10 group focus-within:bg-white transition-all duration-500">
+                  <Search className="w-6 h-6 text-slate-400 ml-4 hidden sm:block group-focus-within:text-amber-500 transition-colors" />
+                  <input 
+                    type="text" 
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder={content.hero.searchPlaceholder}
+                    className="w-full bg-transparent border-none px-4 py-4 md:py-6 text-white group-focus-within:text-slate-900 text-lg md:text-xl font-bold outline-none placeholder-slate-400 focus:ring-0"
+                  />
+                  {searchQuery && (
+                    <button 
+                      onClick={() => setSearchQuery('')}
+                      className="p-2 mr-2 hover:bg-slate-100/10 group-focus-within:hover:bg-slate-100 rounded-full transition-colors"
+                    >
+                      <X className="w-5 h-5 text-slate-400" />
+                    </button>
+                  )}
+                  <button 
+                    onClick={() => {
+                      if (searchQuery.trim() !== '') {
+                        const el = document.getElementById('applications-section');
+                        if (el) el.scrollIntoView({ behavior: 'smooth' });
+                      } else {
+                        setActiveTab('layanan');
+                      }
+                    }}
+                    className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black px-10 py-4 md:py-6 rounded-2xl transition-all duration-300 flex items-center gap-2 whitespace-nowrap shadow-xl shadow-amber-500/20 active:scale-95"
+                  >
+                    <span className="uppercase tracking-widest text-sm">{searchQuery.trim() !== '' ? 'Cari' : 'Mulai'}</span>
+                    <ArrowRight className="w-5 h-5 hidden sm:block" />
+                  </button>
+                </div>
+              </motion.div>
             </div>
-          </motion.div>
+          </div>
         </div>
       </section>
 
       {/* Main Content Area */}
-      <div id="applications-section" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12 relative z-20 space-y-20 mb-20">
+      <div id="applications-section" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-[-4rem] md:mt-[-6rem] relative z-20 space-y-24 mb-24">
         
-        {/* Quick Stats Section */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8">
+        {/* Quick Stats Section - REFINED */}
+        <div className="bg-white rounded-[3.5rem] p-3 md:p-5 grid grid-cols-2 md:grid-cols-4 gap-3 shadow-2xl shadow-blue-900/5">
           {[
-            { label: 'Aplikasi Terpadu', value: applications.length, icon: AppWindow, color: 'text-blue-500', bg: 'bg-blue-50' },
-            { label: 'Layanan Pengguna', value: '45+', icon: Users, color: 'text-amber-500', bg: 'bg-amber-50' },
-            { label: 'Dokumen & Panduan', value: '120+', icon: FileText, color: 'text-emerald-500', bg: 'bg-emerald-50' },
-            { label: 'Akses Publik', value: visitCount ? `${(visitCount / 1000).toFixed(1)}k+` : '10k+', icon: Activity, color: 'text-rose-500', bg: 'bg-rose-50' }
+            { 
+              label: 'Aplikasi Terpadu', 
+              value: applications.length, 
+              icon: AppWindow, 
+              color: 'text-blue-600', 
+              bg: 'bg-blue-500/10',
+              desc: 'Sistem info kepegawaian',
+              action: () => {
+                const el = document.getElementById('applications-section');
+                if (el) el.scrollIntoView({ behavior: 'smooth' });
+              }
+            },
+            { 
+              label: 'Layanan Pengguna', 
+              value: '45+', 
+              icon: Users, 
+              color: 'text-amber-600', 
+              bg: 'bg-amber-500/10',
+              desc: 'Klik untuk lihat semua layanan',
+              action: () => {
+                setActiveTab('layanan');
+              }
+            },
+            { 
+              label: 'Dokumen & Panduan', 
+              value: '120+', 
+              icon: FileText, 
+              color: 'text-emerald-600', 
+              bg: 'bg-emerald-500/10',
+              desc: 'Manual & peraturan SDM',
+              action: () => {
+                setActiveTab('layanan');
+              }
+            },
+            { 
+              label: 'Akses Publik', 
+              value: visitCount ? (visitCount < 1000 ? visitCount.toString() : `${(visitCount / 1000).toFixed(1)}k+`) : '10k+', 
+              icon: Activity, 
+              color: 'text-rose-600', 
+              bg: 'bg-rose-500/10',
+              desc: 'Total kunjungan portal',
+              action: null
+            }
           ].map((stat, i) => (
-            <motion.div 
+            <motion.button 
               key={i}
-              initial={{ opacity: 0, y: 20 }}
+              onClick={stat.action || undefined}
+              initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.1 }}
-              className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col items-center text-center group hover:border-amber-200 transition-all"
+              transition={{ delay: 0.2 + (i * 0.1), duration: 0.6 }}
+              className={cn(
+                "group relative p-8 md:p-10 rounded-[3rem] flex flex-col items-center md:items-start text-center md:text-left transition-all duration-500",
+                stat.action ? "hover:bg-white hover:shadow-2xl hover:shadow-slate-200/50 active:scale-[0.98] cursor-pointer" : "cursor-default"
+              )}
             >
-              <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform", stat.bg, stat.color)}>
+               <div className={cn("w-14 h-14 rounded-3xl flex items-center justify-center mb-6 transition-all duration-500 group-hover:scale-110 group-hover:rotate-[15deg] shadow-inner", stat.bg, stat.color)}>
                 <stat.icon className="w-7 h-7" />
               </div>
-              <div className="text-2xl font-black text-slate-800 tracking-tighter">{stat.value}</div>
-              <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">{stat.label}</div>
-            </motion.div>
+              <div className="text-4xl font-black text-slate-900 tracking-tighter leading-tight mb-1">{stat.value}</div>
+              <div className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] mt-1 mb-3">{stat.label}</div>
+              <div className="hidden md:block text-[11px] font-semibold text-slate-500 leading-tight opacity-50 group-hover:opacity-100 transition-all duration-500">
+                {stat.desc}
+              </div>
+              
+              {stat.action && (
+                <div className="absolute top-10 right-10 opacity-0 group-hover:opacity-100 transition-all duration-500 -translate-x-2 group-hover:translate-x-0">
+                  <ArrowRight className="w-5 h-5 text-amber-500" />
+                </div>
+              )}
+            </motion.button>
           ))}
         </div>
 
@@ -647,10 +712,10 @@ function BerandaView({ setActiveTab, content, visitCount }: { setActiveTab: (tab
         )}
 
         {/* Media Sosial & Publikasi */}
-        <div className="bg-white p-6 md:p-8 rounded-[2rem] shadow-sm border border-slate-200">
-           <div className="text-center mb-10">
-              <h2 className="text-xl md:text-2xl font-extrabold text-slate-800 uppercase tracking-tight">Media Sosial Resmi</h2>
-              <div className="w-16 h-1 bg-amber-500 mx-auto mt-4 rounded-full"></div>
+        <div className="glass p-8 md:p-12 rounded-[3.5rem] shadow-2xl shadow-slate-200/40">
+           <div className="text-center mb-12">
+              <h2 className="text-2xl md:text-4xl font-black text-slate-900 uppercase tracking-tighter">Media Sosial Resmi</h2>
+              <div className="w-24 h-1.5 bg-gradient-to-r from-pink-500 to-amber-500 mx-auto mt-6 rounded-full"></div>
             </div>
            
            <div className="grid grid-cols-1 gap-8 md:gap-12">
@@ -720,13 +785,13 @@ function BerandaView({ setActiveTab, content, visitCount }: { setActiveTab: (tab
         </div>
 
         {/* Pengumuman Terkini */}
-        <div className="grid grid-cols-1 gap-10">
+        <div className="grid grid-cols-1 gap-12">
           {/* Pengumuman Terkini */}
           <section>
-            <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm p-8">
-              <h3 className="text-2xl font-bold tracking-tight mb-8 text-slate-800 flex items-center gap-2 border-b-2 border-slate-100 pb-4 uppercase">
-                <Megaphone className="w-7 h-7 text-amber-500" />
-                Papan Pengumuman & Informasi
+            <div className="glass rounded-[3.5rem] p-10 md:p-14">
+              <h3 className="text-3xl font-black tracking-tighter mb-12 text-slate-900 flex items-center gap-4 border-b-4 border-slate-100 pb-6 uppercase">
+                <Megaphone className="w-10 h-10 text-amber-500" />
+                Papan Informasi
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                  {(content.announcements || []).map((news: any, i: number) => (
@@ -1674,86 +1739,94 @@ function ProfilView({ content }: { content: any }) {
     
     return (
         <motion.div 
-          whileHover={{ y: -5 }}
+          whileHover={{ y: -8, scale: 1.02 }}
           className={cn(
-            "relative rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden flex flex-col shrink-0 bg-white transition-all hover:shadow-xl hover:border-amber-200 group/card", 
-            type === 'leader' ? 'w-64 h-80' : type === 'deputy' ? 'w-56 h-72' : 'w-48 h-64'
+            "relative rounded-[3rem] border border-white/40 glass overflow-hidden flex flex-col shrink-0 transition-all duration-500 hover:shadow-2xl hover:shadow-slate-300/40 group/card", 
+            type === 'leader' ? 'w-72 h-96' : type === 'deputy' ? 'w-64 h-80' : 'w-56 h-72'
           )}
         >
             {/* Photo */}
-            <div className="h-[65%] w-full overflow-hidden bg-slate-100 flex items-center justify-center relative">
+            <div className="h-[65%] w-full overflow-hidden bg-slate-50 flex items-center justify-center relative">
               {member.imageUrl ? (
-                  <img src={member.imageUrl} alt={member.name} className="w-full h-full object-cover grayscale group-hover/card:grayscale-0 transition-all duration-700" />
+                  <img src={member.imageUrl} alt={member.name} className="w-full h-full object-cover grayscale opacity-80 group-hover/card:grayscale-0 group-hover/card:opacity-100 transition-all duration-1000" />
               ) : (
-                  <Users className="w-16 h-16 text-slate-300 group-hover/card:text-amber-500 transition-colors" />
+                  <div className="w-full h-full bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center">
+                    <Users className="w-16 h-16 text-slate-300 group-hover/card:text-amber-500 transition-colors duration-500" />
+                  </div>
               )}
-              <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-white to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-white via-white/20 to-transparent group-hover/card:via-transparent transition-all duration-700" />
             </div>
             
             {/* Information */}
-            <div className="flex-1 p-5 pt-0 text-center flex flex-col justify-center">
-              <div className="font-black text-xs uppercase tracking-wider text-amber-600 mb-1">{type === 'leader' ? 'Ketua Tim' : type === 'deputy' ? 'Sekretariat' : 'Anggota'}</div>
-              <div className="font-bold text-sm tracking-tight text-slate-900 line-clamp-2 leading-tight mb-2">{member.name}</div>
-              <div className="text-[9px] font-bold uppercase tracking-[0.15em] text-slate-400 group-hover/card:text-slate-600 transition-colors">{member.role}</div>
+            <div className="relative z-10 flex-1 p-6 pt-0 text-center flex flex-col justify-center">
+              <div className="font-black text-[9px] uppercase tracking-[0.3em] text-amber-600 mb-2">{type === 'leader' ? 'Ketua Tim' : type === 'deputy' ? 'Sekretariat' : 'Anggota'}</div>
+              <div className="font-black text-sm tracking-tighter text-slate-900 line-clamp-2 leading-tight mb-2 uppercase group-hover/card:text-amber-700 transition-colors">{member.name}</div>
+              <div className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-400 group-hover/card:text-slate-600 transition-colors">{member.role}</div>
             </div>
         </motion.div>
     );
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-20 animate-in fade-in space-y-24">
+    <div className="max-w-7xl mx-auto px-4 py-32 animate-in fade-in slide-in-from-bottom-8 duration-1000 space-y-36">
         {/* Intro Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
             <motion.div 
-              initial={{ opacity: 0, x: -30 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="space-y-8"
+              initial={{ opacity: 0, x: -50 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              className="space-y-10"
             >
-                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-100 text-amber-700 text-xs font-black uppercase tracking-widest border border-amber-200">
+                <div className="inline-flex items-center gap-3 px-6 py-2.5 rounded-full glass border border-amber-500/20 text-amber-600 text-xs font-black uppercase tracking-[0.2em] shadow-xl shadow-amber-500/5">
                     Mengenal Kami
                 </div>
-                <h2 className="text-4xl md:text-5xl lg:text-6xl font-black text-slate-900 tracking-tighter leading-none">
-                    Profil Tim Kerja <span className="text-amber-500">TLK</span>
+                <h2 className="text-5xl md:text-7xl lg:text-8xl font-black text-slate-950 tracking-tighter leading-[0.85]">
+                  Profil Tim Kerja <br />
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-600 to-amber-400">TLK Untidar</span>
                 </h2>
-                <div className="w-20 h-2 bg-slate-900 rounded-full" />
-                <p className="text-slate-500 text-xl leading-relaxed font-medium">
+                <div className="w-24 h-2 bg-slate-900 rounded-full" />
+                <p className="text-slate-500 text-xl md:text-2xl leading-relaxed font-medium max-w-xl opacity-80">
                     {profile.description}
                 </p>
-                <div className="grid grid-cols-2 gap-6 pt-4">
-                    <div className="p-6 bg-white border border-slate-100 rounded-3xl shadow-sm">
-                        <div className="text-3xl font-black text-slate-900 mb-1">01</div>
-                        <div className="text-xs font-black text-slate-400 uppercase tracking-widest">Integritas</div>
+                <div className="grid grid-cols-2 gap-8 pt-6">
+                    <div className="glass p-8 rounded-[2.5rem] shadow-xl shadow-slate-200/40 group hover:bg-slate-900 hover:text-white transition-all duration-500">
+                        <div className="text-4xl font-black mb-2 transition-transform group-hover:scale-110">01</div>
+                        <div className="text-xs font-black uppercase tracking-widest opacity-60">Integritas</div>
                     </div>
-                    <div className="p-6 bg-white border border-slate-100 rounded-3xl shadow-sm">
-                        <div className="text-3xl font-black text-slate-900 mb-1">02</div>
-                        <div className="text-xs font-black text-slate-400 uppercase tracking-widest">Kolaborasi</div>
+                    <div className="glass p-8 rounded-[2.5rem] shadow-xl shadow-slate-200/40 group hover:bg-slate-900 hover:text-white transition-all duration-500">
+                        <div className="text-4xl font-black mb-2 transition-transform group-hover:scale-110">02</div>
+                        <div className="text-xs font-black uppercase tracking-widest opacity-60">Kolaborasi</div>
                     </div>
                 </div>
             </motion.div>
             
             <motion.div 
               initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="relative aspect-square rounded-[3rem] overflow-hidden shadow-2xl border-8 border-white group"
+              whileInView={{ opacity: 1, scale: 1 }}
+              viewport={{ once: true }}
+              className="relative aspect-square rounded-[4rem] overflow-hidden shadow-2xl border-[12px] border-white group"
             >
-                <div className="absolute inset-0 bg-amber-500/10 mix-blend-overlay group-hover:bg-transparent transition-all duration-700" />
+                <div className="absolute inset-0 bg-amber-500/10 mix-blend-overlay group-hover:bg-black/20 transition-all duration-1000" />
                 <img 
                   src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?q=80&w=2070&auto=format&fit=crop" 
                   alt="Team Collaboration" 
-                  className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700 scale-110 group-hover:scale-100" 
+                  className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-1000 scale-110 group-hover:scale-100" 
                 />
-                <div className="absolute inset-0 p-12 flex flex-col justify-end bg-gradient-to-t from-slate-900/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all duration-500">
-                    <h4 className="text-white font-black text-2xl tracking-tighter italic">"Profesional, Melayani, Bermartabat."</h4>
+                <div className="absolute inset-x-0 bottom-0 p-12 bg-gradient-to-t from-black/80 to-transparent flex flex-col justify-end">
+                    <h4 className="text-white font-black text-3xl tracking-tighter italic leading-tight">"Profesional, Melayani, Bermartabat."</h4>
                 </div>
             </motion.div>
         </div>
 
         {/* Structure Section */}
-        <section className="bg-white p-8 md:p-16 rounded-[4rem] border border-slate-200 shadow-2xl shadow-slate-200/50 overflow-hidden">
-            <div className="text-center mb-20 space-y-4">
-                <h3 className="text-sm font-black text-amber-600 uppercase tracking-[0.3em]">Hierarchy</h3>
-                <h2 className="text-4xl font-black text-slate-900 tracking-tighter">Struktur Organisasi</h2>
-                <div className="w-12 h-1 bg-slate-200 mx-auto rounded-full" />
+        <section className="glass p-10 md:p-20 rounded-[4rem] shadow-2xl shadow-slate-200/30 overflow-hidden relative">
+            {/* Background Accent */}
+            <div className="absolute top-0 right-0 w-96 h-96 bg-amber-500/5 rounded-full blur-[100px] -mr-20 -mt-20"></div>
+
+            <div className="text-center mb-24 space-y-6 relative z-10">
+                <h3 className="text-xs font-black text-amber-600 uppercase tracking-[0.4em]">Hierarchy</h3>
+                <h2 className="text-5xl md:text-6xl font-black text-slate-950 tracking-tighter">Struktur Organisasi</h2>
+                <div className="w-16 h-1.5 bg-slate-200 mx-auto rounded-full" />
             </div>
             
             <div className="flex justify-center overflow-x-auto pb-12 no-scrollbar">
@@ -1831,38 +1904,54 @@ function ProfilView({ content }: { content: any }) {
 
         {/* Vision & Functions Section */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
-            <div className="lg:col-span-1 bg-slate-900 rounded-[3rem] p-12 text-white relative overflow-hidden group">
-                <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-125 transition-transform duration-700">
-                    <GraduationCap className="w-32 h-32" />
+            <motion.div 
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="lg:col-span-1 bg-slate-950 rounded-[4rem] p-16 text-white relative overflow-hidden group shadow-2xl shadow-slate-950/40"
+            >
+                <div className="absolute top-0 right-0 p-12 opacity-10 group-hover:scale-125 group-hover:rotate-12 transition-transform duration-1000">
+                    <GraduationCap className="w-48 h-48" />
                 </div>
-                <h3 className="text-3xl font-black tracking-tighter mb-8 bg-gradient-to-r from-amber-200 to-amber-500 bg-clip-text text-transparent">Visi Utama</h3>
-                <p className="text-slate-300 text-lg leading-relaxed font-medium italic">
+                <h3 className="text-4xl font-black tracking-tighter mb-10 bg-gradient-to-r from-amber-200 to-amber-500 bg-clip-text text-transparent">Visi Utama</h3>
+                <p className="text-slate-300 text-xl leading-relaxed font-medium italic opacity-90">
                     "Menjadi pusat pelayanan tata laksana dan kepegawaian yang unggul, profesional, dan akuntabel dalam mendukung Universitas Tidar menuju Wilayah Bebas Korupsi (WBK)."
                 </p>
-                <div className="mt-12 flex items-center gap-4">
-                    <div className="w-12 h-1 bg-amber-500 rounded-full" />
-                    <span className="text-xs font-black uppercase tracking-widest text-slate-500">Core Values</span>
+                <div className="mt-16 flex items-center gap-6">
+                    <div className="w-16 h-1.5 bg-amber-500 rounded-full" />
+                    <span className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Core Values</span>
                 </div>
-            </div>
+            </motion.div>
             
-            <div className="lg:col-span-2 bg-white rounded-[3rem] p-12 border border-slate-200 shadow-sm relative overflow-hidden">
-                <div className="absolute bottom-0 right-0 p-12 text-slate-50 opacity-[0.03]">
-                  <Briefcase className="w-64 h-64" />
+            <motion.div 
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.1 }}
+              className="lg:col-span-2 glass rounded-[4rem] p-16 border border-white/40 shadow-2xl shadow-slate-200/40 relative overflow-hidden"
+            >
+                <div className="absolute bottom-0 right-0 p-12 text-slate-900 opacity-[0.02]">
+                  <Briefcase className="w-80 h-80" />
                 </div>
-                <h3 className="text-3xl font-black text-slate-800 tracking-tighter mb-10 first-letter:text-amber-500">Fungsi & Rincian Tugas</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <h3 className="text-4xl font-black text-slate-900 tracking-tighter mb-12 flex items-center gap-4">
+                  <span className="w-12 h-12 rounded-2xl bg-amber-500 flex items-center justify-center text-white shadow-lg shadow-amber-500/20">
+                    <Scale className="w-6 h-6" />
+                  </span>
+                  Fungsi & Rincian Tugas
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                   {profile.functions.map((f: string, i: number) => (
-                    <div key={i} className="flex gap-4 group">
-                      <div className="w-10 h-10 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-amber-100 group-hover:text-amber-600 transition-all shrink-0">
-                        <CheckCircle2 className="w-5 h-5" />
+                    <div key={i} className="flex gap-6 group">
+                      <div className="w-12 h-12 rounded-2xl bg-white shadow-sm border border-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-slate-900 group-hover:text-white group-hover:border-slate-900 transition-all duration-500 shrink-0">
+                        <CheckCircle2 className="w-6 h-6" />
                       </div>
-                      <p className="text-slate-600 font-medium leading-relaxed leading-snug">
+                      <p className="text-slate-600 font-bold leading-relaxed text-sm opacity-80 group-hover:opacity-100 transition-opacity">
                         {f}
                       </p>
                     </div>
                   ))}
                 </div>
-            </div>
+            </motion.div>
         </div>
 
         {/* Logo Philosophy Section */}
@@ -1917,30 +2006,60 @@ function PengumumanView({ content }: { content: any }) {
   if (!content) return null;
   const announcements = content.announcements || [];
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-20 lg:py-32 animate-in fade-in text-center">
-      <Megaphone className="w-20 h-20 text-slate-300 mx-auto mb-6" />
-      <h2 className="text-3xl font-bold text-slate-800 mb-4">Arsip Informasi & Berita</h2>
-      <p className="text-slate-500 text-lg mb-10">Pusat publikasi surat edaran, berita layanan, dan liputan kegiatan kepegawaian Universitas Tidar.</p>
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-32 lg:py-48 animate-in fade-in slide-in-from-bottom-12 duration-1000">
+      <div className="text-center mb-20 space-y-6">
+        <motion.div 
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          className="w-24 h-24 bg-slate-950 rounded-[2.5rem] flex items-center justify-center mx-auto shadow-2xl shadow-slate-900/20"
+        >
+          <Megaphone className="w-10 h-10 text-amber-500" />
+        </motion.div>
+        <h2 className="text-5xl md:text-7xl font-black text-slate-950 tracking-tighter">Informasi Terkini</h2>
+        <p className="text-slate-500 text-xl font-medium max-w-2xl mx-auto leading-relaxed">Pusat publikasi surat edaran, berita layanan, dan liputan kegiatan kepegawaian Universitas Tidar.</p>
+      </div>
       
-      <div className="space-y-6 text-left">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {announcements.map((nf: any, i: number)=> (
-          <div key={i} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
-             <div className="flex flex-wrap items-center gap-3 mb-3">
-               <span className="text-xs font-bold px-2 py-1 bg-amber-100 text-amber-800 rounded">{nf.type || nf.tag || 'Berita'}</span>
-               <span className="text-sm font-medium text-slate-500 flex items-center gap-1"><CalendarCheck className="w-4 h-4" /> {nf.date}</span>
+          <motion.div 
+            key={i} 
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: i * 0.1 }}
+            className="glass group p-10 rounded-[3rem] border border-white/40 shadow-xl shadow-slate-200/40 hover:shadow-2xl hover:shadow-slate-300/50 transition-all duration-500 flex flex-col h-full"
+          >
+             <div className="flex items-center justify-between mb-8">
+               <span className="text-[10px] font-black px-4 py-1.5 bg-amber-500 text-slate-950 rounded-full uppercase tracking-widest shadow-lg shadow-amber-500/20">{nf.type || nf.tag || 'Berita'}</span>
+               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                 <CalendarCheck className="w-3 h-3" /> {nf.date}
+               </span>
              </div>
-             <a href={nf.url || '#'} target={nf.url && nf.url !== '#' ? '_blank' : undefined} rel={nf.url && nf.url !== '#' ? 'noopener noreferrer' : undefined} className="inline-block">
-               <h3 className="text-xl font-bold text-slate-800 mb-2 hover:text-blue-600 transition-colors">{nf.title}</h3>
-             </a>
-             <p className="text-slate-500 text-sm mt-2">{nf.excerpt || "Silakan klik baca selengkapnya untuk detail informasi ini."}</p>
-             <a href={nf.url || '#'} target={nf.url && nf.url !== '#' ? '_blank' : undefined} rel={nf.url && nf.url !== '#' ? 'noopener noreferrer' : undefined} className="inline-block mt-4 text-blue-600 font-semibold text-sm flex items-center gap-1 hover:underline">
+             
+             <h3 className="text-2xl font-black text-slate-950 tracking-tight mb-4 group-hover:text-amber-600 transition-colors duration-500 leading-tight flex-1">
+               {nf.title}
+             </h3>
+             
+             <p className="text-slate-500 font-medium text-sm leading-relaxed mb-8 opacity-80">
+               {nf.excerpt || "Silakan klik baca selengkapnya untuk detail informasi ini."}
+             </p>
+             
+             <a 
+               href={nf.url || '#'} 
+               target={nf.url && nf.url !== '#' ? '_blank' : undefined} 
+               rel={nf.url && nf.url !== '#' ? 'noopener noreferrer' : undefined} 
+               className="inline-flex items-center gap-3 text-slate-950 font-black text-xs uppercase tracking-widest group-hover:gap-5 transition-all w-max"
+             >
                Baca Selengkapnya
+               <ArrowUpRight className="w-4 h-4 text-amber-500" />
              </a>
-          </div>
+          </motion.div>
         ))}
+        
         {announcements.length === 0 && (
-           <div className="text-center p-10 bg-slate-50 rounded-2xl border border-slate-200">
-             Belum ada pengumuman.
+           <div className="md:col-span-2 text-center py-20 glass rounded-[3rem] border-dashed border-2 border-white/40">
+             <Info className="w-16 h-16 text-slate-300 mx-auto mb-6" />
+             <h3 className="text-2xl font-black text-slate-400">Belum ada pengumuman hari ini</h3>
            </div>
         )}
       </div>
@@ -1949,32 +2068,56 @@ function PengumumanView({ content }: { content: any }) {
 }
 
 function BantuanView({ content }: { content: any }) {
-  const telepon = content.bantuan?.telepon || '(0293) 364113';
-  const keteranganTelepon = content.bantuan?.keteranganTelepon || 'Layanan aktif pada jam kerja (Senin-Jumat, 08.00 - 16.00 WIB).';
-  const email = content.bantuan?.email || 'kepegawaian@untidar.ac.id';
-  const keteranganEmail = content.bantuan?.keteranganEmail || 'Gunakan email Untidar Anda untuk mengirimkan dokumen yang membutuhkan proses.';
+  const bantuan = content.bantuan || {};
+  const telepon = bantuan.telepon || '(0293) 364113';
+  const keteranganTelepon = bantuan.keteranganTelepon || 'Layanan aktif pada jam kerja (Senin-Jumat, 08.00 - 16.00 WIB).';
+  const email = bantuan.email || 'kepegawaian@untidar.ac.id';
+  const keteranganEmail = bantuan.keteranganEmail || 'Gunakan email Untidar Anda untuk mengirimkan dokumen yang membutuhkan proses.';
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-20 lg:py-32 animate-in fade-in">
-      <div className="text-center mb-16">
-        <LifeBuoy className="w-20 h-20 text-amber-500 mx-auto mb-6" />
-        <h2 className="text-3xl font-bold text-slate-800 mb-4">Pusat Bantuan & Layanan Helpdesk</h2>
-        <p className="text-slate-500 text-lg">Hubungi staf tata laksana dan kepegawaian jika Anda memiliki kendala pengurusan dokumen atau akses sistem.</p>
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-32 lg:py-48 animate-in fade-in slide-in-from-bottom-12 duration-1000">
+      <div className="text-center mb-24 space-y-6">
+        <motion.div 
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          className="w-24 h-24 bg-amber-500 rounded-[2.5rem] flex items-center justify-center mx-auto shadow-2xl shadow-amber-500/20"
+        >
+          <LifeBuoy className="w-10 h-10 text-white" />
+        </motion.div>
+        <h2 className="text-5xl md:text-7xl font-black text-slate-950 tracking-tighter">Pusat Bantuan</h2>
+        <p className="text-slate-500 text-xl font-medium max-w-2xl mx-auto leading-relaxed">Hubungi staf tata laksana dan kepegawaian jika Anda memiliki kendala pengurusan dokumen atau akses sistem.</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm">
-           <Phone className="w-10 h-10 text-blue-500 mb-4" />
-           <h3 className="text-xl font-bold text-slate-800 mb-2">Telepon Resmi</h3>
-           <p className="text-slate-500 mb-4 text-sm">{keteranganTelepon}</p>
-           <p className="text-2xl font-black text-slate-800">{telepon}</p>
-        </div>
-        <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm">
-           <Mail className="w-10 h-10 text-emerald-500 mb-4" />
-           <h3 className="text-xl font-bold text-slate-800 mb-2">Email Persuratan</h3>
-           <p className="text-slate-500 mb-4 text-sm">{keteranganEmail}</p>
-           <p className="text-lg font-bold text-slate-800">{email}</p>
-        </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <motion.div 
+          whileHover={{ y: -10 }}
+          className="glass p-12 rounded-[4rem] border border-white/40 shadow-2xl shadow-slate-200/40 relative overflow-hidden group"
+        >
+           <div className="absolute top-0 right-0 p-12 opacity-[0.03] group-hover:scale-125 transition-transform duration-1000 text-blue-600">
+             <Phone className="w-48 h-48" />
+           </div>
+           <div className="w-16 h-16 rounded-3xl bg-blue-500 flex items-center justify-center text-white mb-8 shadow-lg shadow-blue-500/20">
+             <Phone className="w-8 h-8" />
+           </div>
+           <h3 className="text-3xl font-black text-slate-950 tracking-tighter mb-4">Telepon Resmi</h3>
+           <p className="text-slate-500 font-bold mb-8 text-sm leading-relaxed opacity-80">{keteranganTelepon}</p>
+           <p className="text-4xl font-black text-slate-950 tracking-tighter group-hover:text-blue-600 transition-colors">{telepon}</p>
+        </motion.div>
+
+        <motion.div 
+          whileHover={{ y: -10 }}
+          className="glass p-12 rounded-[4rem] border border-white/40 shadow-2xl shadow-slate-200/40 relative overflow-hidden group"
+        >
+           <div className="absolute top-0 right-0 p-12 opacity-[0.03] group-hover:scale-125 transition-transform duration-1000 text-emerald-600">
+             <Mail className="w-48 h-48" />
+           </div>
+           <div className="w-16 h-16 rounded-3xl bg-emerald-500 flex items-center justify-center text-white mb-8 shadow-lg shadow-emerald-500/20">
+             <Mail className="w-8 h-8" />
+           </div>
+           <h3 className="text-3xl font-black text-slate-950 tracking-tighter mb-4">Email Persuratan</h3>
+           <p className="text-slate-500 font-bold mb-8 text-sm leading-relaxed opacity-80">{keteranganEmail}</p>
+           <p className="text-2xl font-black text-slate-950 tracking-tighter group-hover:text-emerald-600 transition-colors truncate">{email}</p>
+        </motion.div>
       </div>
     </div>
   );
@@ -1989,7 +2132,6 @@ function AIChatBot() {
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const chatRef = useRef<any>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -2007,29 +2149,24 @@ function AIChatBot() {
     setIsTyping(true);
 
     try {
-      if (!chatRef.current) {
-        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-        chatRef.current = ai.chats.create({
-            model: "gemini-3-flash-preview",
-            config: {
-                systemInstruction: "Anda adalah asisten virtual (AI) untuk Portal SDM dan Tata Laksana Kepegawaian (TLK) Universitas Tidar (Untidar). Jawab dengan ramah, rapi, dan profesional. Fokus pada SISTER, SIMPEG, E-Kinerja, Presensi, Cuti, Mutasi, dan layanan lainnya. Gunakan referensi bahwa Untidar masuk di bawah Kemendiktisaintek. Alamat: Jl. Kapten Suparman No.39, Magelang. Kontak: kepegawaian@untidar.ac.id | (0293) 364113."
-            }
-        });
+      const resp = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: userText,
+          history: messages.map(m => ({ 
+            role: m.role === 'user' ? 'user' : 'model', 
+            parts: [{ text: m.text }] 
+          }))
+        })
+      });
+
+      if (!resp.ok) {
+        throw new Error("Gagal terhubung ke AI");
       }
 
-      const streamResponse = await chatRef.current.sendMessageStream({ message: userText });
-      
-      setMessages(prev => [...prev, { role: 'model', text: '' }]);
-
-      let fullText = '';
-      for await (const chunk of streamResponse) {
-        fullText += chunk.text;
-        setMessages(prev => {
-            const newMessages = [...prev];
-            newMessages[newMessages.length - 1].text = fullText;
-            return newMessages;
-        });
-      }
+      const data = await resp.json();
+      setMessages(prev => [...prev, { role: 'model', text: data.text }]);
     } catch (error) {
       console.error("Chat error:", error);
       setMessages(prev => [...prev, { role: 'model', text: "Maaf, sistem AI kami sedang tidak tersedia atau koneksi terputus. Silakan coba lagi." }]);
