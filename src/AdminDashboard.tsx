@@ -642,13 +642,21 @@ function PanduanEditor({ services, settings }: { services: any[], settings: any 
                             }
 
                             setSaving(true);
+                            if (!storage) {
+                              alert("Storage tidak terinisialisasi. Periksa Firebase Console Anda.");
+                              setSaving(false);
+                              return;
+                            }
+                            console.log("Starting upload to storage for file:", file.name);
                             try {
                               const storageRef = ref(storage, `sops/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.\-_]/g, '')}`);
+                              console.log("Upload reference:", storageRef.fullPath);
                               const snapshot = await uploadBytes(storageRef, file);
+                              console.log("Upload snapshot:", snapshot);
                               const downloadUrl = await getDownloadURL(snapshot.ref);
                               
                               setDetail({...detail, sopUrl: downloadUrl});
-                              alert("Berhasil mengunggah dokumen! Silakan klik 'SIMPAN SEMUA PERUBAHAN PANDUAN' untuk memperbarui database.");
+                              alert("Berhasil mengunggah dokumen!");
                             } catch (error: any) {
                               console.error("Upload error:", error);
                               alert("Gagal mengunggah file ke server. Error: " + error.message);
