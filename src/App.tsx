@@ -194,26 +194,6 @@ export default function App() {
     }
   }, [activeContent.skmSettings, activeTab]);
 
-  // Instagram Widget Script Injector
-  React.useEffect(() => {
-    if (activeContent.footer?.instagramWidgetCode) {
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(activeContent.footer.instagramWidgetCode, 'text/html');
-      const scripts = doc.querySelectorAll('script');
-      
-      scripts.forEach(script => {
-        const scriptId = `ig-widget-script-${Math.abs(script.src.length + script.innerHTML.length)}`;
-        if (!document.getElementById(scriptId)) {
-          const newScript = document.createElement('script');
-          newScript.id = scriptId;
-          Array.from(script.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
-          newScript.innerHTML = script.innerHTML;
-          document.body.appendChild(newScript);
-        }
-      });
-    }
-  }, [activeContent.footer?.instagramWidgetCode]);
-
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener('scroll', handleScroll);
@@ -473,16 +453,29 @@ export default function App() {
 }
 
 function BeholdWidgetWrapper({ html }: { html: string }) {
-  const containerRef = React.useRef<HTMLDivElement>(null);
-
-  React.useEffect(() => {
-    if (containerRef.current) {
-      containerRef.current.innerHTML = html;
-    }
-    // We don't clean it up to prevent React unmounting the inner DOM directly
-  }, [html]);
-
-  return <div ref={containerRef} className="w-full h-full min-h-[300px] flex items-center justify-center bg-slate-50 rounded-2xl overflow-hidden" />;
+  // Isolate third party widget in an iframe so its script doesn't crash the main app
+  return (
+    <iframe
+      title="Instagram Feed"
+      sandbox="allow-scripts allow-popups allow-same-origin"
+      srcDoc={`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <style>
+              body { margin: 0; padding: 0; display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; background: transparent; }
+            </style>
+          </head>
+          <body>
+            ${html}
+          </body>
+        </html>
+      `}
+      className="w-full h-[500px] border-0 rounded-2xl overflow-hidden bg-slate-50"
+    />
+  );
 }
 
 function BerandaView({ setActiveTab, content, visitCount }: { setActiveTab: (tab: Tab) => void, content: any, visitCount: number | null }) {
@@ -512,7 +505,7 @@ function BerandaView({ setActiveTab, content, visitCount }: { setActiveTab: (tab
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-1000">
       {/* Hero Section */}
-      <section className="relative pt-32 pb-24 lg:pt-56 lg:pb-40 overflow-hidden bg-[#0f172a] border-b-8 border-amber-500 rounded-b-[4rem] md:rounded-b-[6rem] shadow-2xl">
+      <section className="relative pt-24 pb-20 lg:pt-40 lg:pb-32 overflow-hidden bg-[#0f172a] border-b-8 border-amber-500 rounded-b-[3rem] md:rounded-b-[4rem] shadow-2xl">
         <div className="absolute inset-0 opacity-50 mix-blend-multiply scale-110 motion-safe:animate-[pulse_10s_ease-in-out_infinite] bg-[url('https://images.unsplash.com/photo-1541339907198-e08756dedf3f?q=80&w=2070&auto=format&fit=crop')] bg-cover bg-center" />
         <div className="absolute inset-0 bg-gradient-to-tr from-slate-950 via-slate-900/90 to-transparent" />
         
@@ -531,10 +524,10 @@ function BerandaView({ setActiveTab, content, visitCount }: { setActiveTab: (tab
                 <div className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-white/10 text-amber-300 text-xs font-black mb-8 backdrop-blur-xl border border-white/20 uppercase tracking-[0.2em] shadow-xl shadow-black/20">
                   {content.header.ministry}
                 </div>
-                <h1 className="text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter mb-8 leading-[0.9] text-transparent bg-clip-text bg-gradient-to-r from-white via-white to-amber-200">
+                <h1 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tighter mb-6 leading-tight text-transparent bg-clip-text bg-gradient-to-r from-white via-white to-amber-200">
                   {content.hero.title}
                 </h1>
-                <p className="text-slate-300 md:text-2xl max-w-2xl lg:mx-0 mx-auto leading-relaxed mb-12 font-medium opacity-90">
+                <p className="text-slate-300 md:text-xl max-w-2xl lg:mx-0 mx-auto leading-relaxed mb-10 font-medium opacity-90">
                   {content.hero.description}
                 </p>
 
@@ -578,10 +571,10 @@ function BerandaView({ setActiveTab, content, visitCount }: { setActiveTab: (tab
       </section>
 
       {/* Main Content Area */}
-      <div id="applications-section" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-[-4rem] md:mt-[-6rem] relative z-20 space-y-24 mb-24">
+      <div id="applications-section" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-[-3rem] md:mt-[-4rem] relative z-20 space-y-20 mb-24">
         
         {/* Quick Stats Section - REFINED */}
-        <div className="bg-white rounded-[3.5rem] p-3 md:p-5 grid grid-cols-2 md:grid-cols-4 gap-3 shadow-2xl shadow-blue-900/5">
+        <div className="bg-white rounded-3xl p-4 md:p-8 grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 shadow-2xl shadow-blue-900/5">
           {[
             { 
               label: 'Aplikasi Terpadu', 
@@ -634,8 +627,8 @@ function BerandaView({ setActiveTab, content, visitCount }: { setActiveTab: (tab
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 + (i * 0.1), duration: 0.6 }}
               className={cn(
-                "group relative p-8 md:p-10 rounded-[3rem] flex flex-col items-center md:items-start text-center md:text-left transition-all duration-500",
-                stat.action ? "hover:bg-white hover:shadow-2xl hover:shadow-slate-200/50 active:scale-[0.98] cursor-pointer" : "cursor-default"
+                "group relative p-6 rounded-2xl flex flex-col items-center md:items-start text-center md:text-left transition-all duration-500",
+                stat.action ? "hover:bg-slate-50 hover:shadow-xl active:scale-[0.98] cursor-pointer" : "cursor-default"
               )}
             >
                <div className={cn("w-14 h-14 rounded-3xl flex items-center justify-center mb-6 transition-all duration-500 group-hover:scale-110 group-hover:rotate-[15deg] shadow-inner", stat.bg, stat.color)}>
@@ -712,7 +705,7 @@ function BerandaView({ setActiveTab, content, visitCount }: { setActiveTab: (tab
         )}
 
         {/* Media Sosial & Publikasi */}
-        <div className="glass p-8 md:p-12 rounded-[3.5rem] shadow-2xl shadow-slate-200/40">
+        <div className="glass p-6 md:p-10 rounded-3xl shadow-2xl shadow-slate-200/40">
            <div className="text-center mb-12">
               <h2 className="text-2xl md:text-4xl font-black text-slate-900 uppercase tracking-tighter">Media Sosial Resmi</h2>
               <div className="w-24 h-1.5 bg-gradient-to-r from-pink-500 to-amber-500 mx-auto mt-6 rounded-full"></div>
@@ -788,7 +781,7 @@ function BerandaView({ setActiveTab, content, visitCount }: { setActiveTab: (tab
         <div className="grid grid-cols-1 gap-12">
           {/* Pengumuman Terkini */}
           <section>
-            <div className="glass rounded-[3.5rem] p-10 md:p-14">
+            <div className="glass rounded-3xl p-6 md:p-10">
               <h3 className="text-3xl font-black tracking-tighter mb-12 text-slate-900 flex items-center gap-4 border-b-4 border-slate-100 pb-6 uppercase">
                 <Megaphone className="w-10 h-10 text-amber-500" />
                 Papan Informasi
