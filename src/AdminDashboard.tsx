@@ -100,6 +100,7 @@ function PanduanEditor({ services, settings }: { services: any[], settings: any 
   const [detail, setDetail] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [existingDetails, setExistingDetails] = useState<string[]>([]);
   
@@ -630,7 +631,16 @@ function PanduanEditor({ services, settings }: { services: any[], settings: any 
                     <label className="block text-sm font-bold text-slate-700">Upload File PDF (Disarankan)</label>
                     <div className="flex gap-3">
                       <label className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-blue-50 text-blue-700 rounded-xl border border-blue-200 cursor-pointer hover:bg-blue-100 transition-all font-bold text-sm">
-                        <Plus className="w-4 h-4" /> Pilih & Upload PDF
+                        {saving && uploadProgress !== null ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-blue-300 border-t-blue-700 rounded-full animate-spin" />
+                            Sedang mengunggah...
+                          </>
+                        ) : (
+                          <>
+                            <Plus className="w-4 h-4" /> Pilih & Upload PDF
+                          </>
+                        )}
                         <input 
                           type="file" 
                           accept="application/pdf,image/*" 
@@ -639,52 +649,45 @@ function PanduanEditor({ services, settings }: { services: any[], settings: any 
                             const file = e.target.files?.[0];
                             if (!file) return;
                             
-                            if (file.size > 10 * 1024 * 1024) {
-                              alert("Ukuran file melebihi batas 10MB. Harap kompres PDF Anda terlebih dahulu.");
+                            if (file.size > 5 * 1024 * 1024) {
+                              alert("Ukuran file melebihi batas 5MB untuk kestabilan koneksi. Harap kompres PDF Anda (disarankan di bawah 1MB) menggunakan PDF compressor online.");
                               e.target.value = '';
                               return;
                             }
 
-                            setSaving(true);
-                            if (!storage) {
-                              alert("Storage tidak terinisialisasi. Periksa Firebase Console Anda.");
-                              setSaving(false);
-                              return;
-                            }
-                            console.log("Starting upload to storage for file:", file.name, "Size:", file.size);
-                            try {
-                              const storageRef = ref(storage, `sops/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.\-_]/g, '')}`);
-                              const uploadTask = uploadBytesResumable(storageRef, file);
-                              
-                              const downloadUrl = await Promise.race([
-                                new Promise<string>((resolve, reject) => {
-                                  uploadTask.on('state_changed', 
-                                    (snapshot) => {
-                                      // Progress can be monitored if needed
-                                    }, 
-                                    reject,
-                                    async () => {
-                                      try {
-                                        const url = await getDownloadURL(uploadTask.snapshot.ref);
-                                        resolve(url);
-                                      } catch (e) {
-                                        reject(e);
-                                      }
-                                    }
-                                  );
-                                }),
-                                new Promise<string>((_, reject) => setTimeout(() => reject(new Error("Timeout: Unggah file terlalu lama. Periksa koneksi Anda.")), 60000))
-                              ]);
-                              
-                              setDetail(prev => ({...prev, sopUrl: downloadUrl}));
-                              alert("Berhasil mengunggah dokumen!");
-                            } catch (error: any) {
-                              console.error("Upload error details:", error);
-                              alert("Gagal mengunggah file. Error: " + error.message);
-                            } finally {
-                              setSaving(false);
-                              if (e.target) e.target.value = '';
-                            }
+                             setSaving(true);
+                             setUploadProgress(0);
+                             if (!storage) {
+                               alert("Storage tidak terinisialisasi. Periksa Firebase Console Anda.");
+                               setSaving(false);
+                               setUploadProgress(null);
+                               return;
+                             }
+                             console.log("Starting upload for:", file.name, "Size:", file.size);
+                              try {
+                                const storageRef = ref(storage, `sops/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.\-_]/g, '')}`);
+                                
+                                console.log("Starting upload with buffer...");
+                                const fileBuffer = await file.arrayBuffer();
+                                const uploadPromise = uploadBytes(storageRef, fileBuffer, { contentType: file.type });
+                                
+                                const snapshot = await Promise.race([
+                                  uploadPromise,
+                                  new Promise<any>((_, reject) => setTimeout(() => reject(new Error("Timeout: Unggah file terlalu lama (batas 5 menit).")), 300000))
+                                ]);
+                                
+                                const downloadUrl = await getDownloadURL(snapshot.ref);
+                                
+                                setDetail(prev => ({...prev, sopUrl: downloadUrl}));
+                                alert("Berhasil mengunggah dokumen!");
+                              } catch (error: any) {
+                                console.error("Detailed upload error:", error);
+                                alert(`Gagal mengunggah file. \n\nSaran:\n1. Perkecil ukuran file (disarankan < 1MB).\n2. Gunakan jaringan internet yang berbeda.\n3. Gunakan 'Link URL' (Upload ke Google Drive lalu tempel linknya di kotak bawah).\n\nError: ${error.message}`);
+                              } finally {
+                               setSaving(false);
+                               setUploadProgress(null);
+                               if (e.target) e.target.value = '';
+                             }
                           }}
                         />
                       </label>
@@ -837,8 +840,17 @@ function PanduanEditor({ services, settings }: { services: any[], settings: any 
              disabled={saving} 
              className="w-full bg-blue-600 text-white px-8 py-4 rounded-2xl font-black shadow-xl shadow-blue-600/30 hover:bg-blue-700 transition-all flex items-center justify-center gap-2 text-lg border-2 border-blue-500"
            >
-             {saving ? <div className="w-6 h-6 border-4 border-white/40 border-t-white rounded-full animate-spin"></div> : <Save className="w-6 h-6" />}
-             {saving ? 'MEMPROSES & MENYIMPAN PANDUAN...' : 'SIMPAN SEMUA PERUBAHAN PANDUAN'}
+             {saving ? (
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 border-4 border-white/40 border-t-white rounded-full animate-spin"></div>
+                  {uploadProgress !== null ? 'SEDANG MENGUNGGAH DOKUMEN...' : 'MEMPROSES & MENYIMPAN...'}
+                </div>
+             ) : (
+               <>
+                 <Save className="w-6 h-6" />
+                 SIMPAN SEMUA PERUBAHAN PANDUAN
+               </>
+             )}
            </button>
         </div>
       </div>

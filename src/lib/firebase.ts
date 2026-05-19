@@ -1,7 +1,7 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
-import { getFirestore, doc, getDocFromServer, collection, getDocs, setDoc, updateDoc, deleteDoc, onSnapshot, serverTimestamp } from 'firebase/firestore';
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { initializeFirestore, doc, getDocFromServer, collection, getDocs, setDoc, updateDoc, deleteDoc, onSnapshot, serverTimestamp } from 'firebase/firestore';
+import { getStorage, ref, uploadBytes, getDownloadURL, uploadBytesResumable } from 'firebase/storage';
 import firebaseConfig from '../../firebase-applet-config.json'; // Adjust path if needed
 
 const app = initializeApp(firebaseConfig);
@@ -10,13 +10,20 @@ console.log('Firebase Config Loaded:', {
   hasStorage: !!firebaseConfig.storageBucket,
   storageBucket: firebaseConfig.storageBucket 
 });
-// Initialize Firestore with Database ID if provided
+
+// Initialize Firestore with Database ID if provided and force long polling to solve connectivity issues
 const firestoreDbId = (firebaseConfig as any).firestoreDatabaseId || '(default)';
-export const db = getFirestore(app, firestoreDbId);
+export const db = initializeFirestore(app, {
+  experimentalForceLongPolling: true,
+}, firestoreDbId);
+
 export const auth = getAuth(app);
 export let storage: any;
 try {
-  storage = getStorage(app, firebaseConfig.storageBucket);
+  // Use bucket from config or fallback to project-id based default
+  const bucketName = firebaseConfig.storageBucket || `${firebaseConfig.projectId}.firebasestorage.app`;
+  storage = getStorage(app, bucketName);
+  console.log('Firebase Storage initialized with bucket:', bucketName);
 } catch (error) {
   console.error('Firebase Storage initialization failed.', error);
 }
