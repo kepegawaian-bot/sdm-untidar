@@ -1473,22 +1473,8 @@ function LayananView({ content, onOpenSKM }: { content: any, onOpenSKM: () => vo
     // Check if it's the SKM survey
     if (item.url === 'skm-survey' || item.id === 'skm-survey') {
       const skmSettings = content.skmSettings || {};
-      const visibilityMode = skmSettings.visibilityMode || 'always';
-      
+      // Always visible
       let isVisible = true;
-      if (visibilityMode === 'hidden') isVisible = false;
-      if (visibilityMode === 'scheduled') {
-        const now = new Date();
-        const start = skmSettings.startDate ? new Date(skmSettings.startDate) : null;
-        const end = skmSettings.endDate ? new Date(skmSettings.endDate) : null;
-        if (start && now < start && now.toDateString() !== start.toDateString()) isVisible = false;
-        if (end && now > end && now.toDateString() !== end.toDateString()) isVisible = false;
-      }
-
-      if (!isVisible) {
-        alert("Maaf, Survei Kepuasan Masyarakat saat ini belum dibuka atau telah ditutup.");
-        return;
-      }
       
       if (skmSettings.externalUrl) {
         window.open(skmSettings.externalUrl, '_blank', 'noopener,noreferrer');

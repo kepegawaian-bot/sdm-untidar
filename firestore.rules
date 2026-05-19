@@ -80,6 +80,8 @@ service cloud.firestore {
              data.alurSteps is list &&
              data.pic is string && data.pic.size() <= 200 &&
              (!data.keys().hasAny(['jenisKenaikanPangkat']) || data.jenisKenaikanPangkat is list) &&
+             (!data.keys().hasAny(['sopMode']) || data.sopMode is string) &&
+             (!data.keys().hasAny(['sopUrl']) || data.sopUrl is string) &&
              data.updatedAt is timestamp;
     }
 
