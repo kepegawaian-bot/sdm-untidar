@@ -229,7 +229,7 @@ export default function App() {
             : "bg-white/95 lg:bg-slate-900 border-slate-800 py-3 lg:py-4"
         )}
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
           {/* Logo Area */}
           <div className="flex items-center gap-3 md:gap-5 cursor-pointer" onClick={() => setActiveTab('beranda')}>
             <img src={LOGO_UNTIDAR} alt="Logo Universitas Tidar" className="h-10 md:h-12 w-auto object-contain" />
@@ -360,7 +360,7 @@ export default function App() {
 
       {/* Footer */}
       <footer className="bg-slate-900 text-slate-300 pt-16 pb-8 border-t border-slate-800 relative z-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-12">
             <div>
               <div className="flex items-center gap-3 mb-6 bg-white p-3 rounded-2xl w-max">
@@ -452,6 +452,64 @@ export default function App() {
   );
 }
 
+function usePdfUrl(url: string | undefined): string | undefined {
+  const [blobUrl, setBlobUrl] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    if (!url) {
+      setBlobUrl(undefined);
+      return;
+    }
+    if (!url.startsWith('data:')) {
+      setBlobUrl(url);
+      return;
+    }
+
+    let isMounted = true;
+    let createdUrl = '';
+
+    fetch(url)
+      .then(res => res.blob())
+      .then(blob => {
+        if (!isMounted) return;
+        createdUrl = URL.createObjectURL(blob);
+        setBlobUrl(createdUrl);
+      })
+      .catch(e => {
+        console.error("Failed to convert data URL to blob", e);
+        if (isMounted) setBlobUrl(url);
+      });
+
+    return () => {
+      isMounted = false;
+      if (createdUrl) {
+         URL.revokeObjectURL(createdUrl);
+      }
+    };
+  }, [url]);
+
+  return blobUrl;
+}
+
+function PdfIframe({ url, title }: { url: string, title?: string }) {
+  const objectUrl = usePdfUrl(url);
+  const srcOrig = url.includes('drive.google.com') ? url : objectUrl;
+  const src = url.includes('drive.google.com') ? url.replace('/view', '/preview') : objectUrl;
+  
+  return (
+    <div className="w-full flex-1 flex flex-col items-center bg-slate-50 border rounded-xl overflow-hidden p-2">
+      <div className="mb-2 w-full flex justify-end px-2">
+         <a href={srcOrig} target="_blank" rel="noopener noreferrer" className="px-3 py-1 bg-blue-100 text-blue-700 rounded font-semibold text-xs hover:bg-blue-200 transition">
+            Buka Dokumen di Tab Baru
+         </a>
+      </div>
+      <object data={src} type="application/pdf" className="w-full h-full min-h-[500px] bg-white border border-slate-200 rounded-lg">
+          <p className="p-4 text-center">Browser Anda tidak mendukung preview PDF. <a href={srcOrig} target="_blank" className="text-blue-600 underline">Download PDF</a></p>
+      </object>
+    </div>
+  );
+}
+
 function BeholdWidgetWrapper({ html }: { html: string }) {
   // Isolate third party widget in an iframe so its script doesn't crash the main app
   return (
@@ -513,7 +571,7 @@ function BerandaView({ setActiveTab, content, visitCount }: { setActiveTab: (tab
         <div className="absolute top-1/4 right-10 w-64 h-64 bg-amber-500/10 rounded-full blur-[100px] animate-pulse"></div>
         <div className="absolute bottom-1/4 left-10 w-64 h-64 bg-blue-500/10 rounded-full blur-[100px] animate-pulse animation-delay-2000"></div>
 
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col lg:flex-row items-center gap-12">
             <div className="flex-1 text-center lg:text-left text-white">
               <motion.div
@@ -571,7 +629,7 @@ function BerandaView({ setActiveTab, content, visitCount }: { setActiveTab: (tab
       </section>
 
       {/* Main Content Area */}
-      <div id="applications-section" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-[-3rem] md:mt-[-4rem] relative z-20 space-y-20 mb-24">
+      <div id="applications-section" className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mt-[-3rem] md:mt-[-4rem] relative z-20 space-y-20 mb-24">
         
         {/* Quick Stats Section - REFINED */}
         <div className="bg-white rounded-3xl p-4 md:p-8 grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 shadow-2xl shadow-blue-900/5">
@@ -810,41 +868,33 @@ function BerandaView({ setActiveTab, content, visitCount }: { setActiveTab: (tab
 
 // --- Detailed Views to match Google Sites robust content ---
 
+const DEFAULT_QUESTIONS = [
+  { id: 'persyaratan', label: 'Persyaratan', question: 'Kesesuaian persyaratan pelayanan dengan jenis pelayanannya.' },
+  { id: 'prosedur', label: 'Prosedur', question: 'Kemudahan tahapan pelayanan yang diberikan (kesederhanaan alur).' },
+  { id: 'waktu', label: 'Waktu Pelayanan', question: 'Kecepatan dan ketepatan waktu dalam penyelesaian pelayanan.' },
+  { id: 'biaya', label: 'Biaya/Tarif', question: 'Kewajaran biaya/tarif dalam mendapatkan pelayanan (termasuk jika gratis).' },
+  { id: 'produk', label: 'Produk Spesifikasi', question: 'Kesesuaian hasil pelayanan yang diterima dengan ketentuan yang ditetapkan.' },
+  { id: 'kompetensi', label: 'Kompetensi Pelaksana', question: 'Kemampuan, pengetahuan, dan keterampilan petugas dalam memberikan pelayanan.' },
+  { id: 'perilaku', label: 'Perilaku Pelaksana', question: 'Sikap petugas dalam memberikan pelayanan terkait kesopanan dan keramahan.' },
+  { id: 'sarpras', label: 'Sarana & Prasarana', question: 'Kualitas dan kenyamanan sarana prasarana pendukung pelayanan.' },
+  { id: 'pengaduan', label: 'Penanganan Pengaduan', question: 'Respon dan tata cara penanganan pengaduan, saran, dan masukan.' }
+];
+
 // --- SKM Survey Modal ---
 function SKMSurveyModal({ onClose, settings, services }: { onClose: () => void, settings?: any, services?: any }) {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   
+  const questions = settings?.questions?.length > 0 ? settings.questions : DEFAULT_QUESTIONS;
+
   const [formData, setFormData] = useState({
     nama: '',
     unitKerja: '',
     layanan: '',
-    ratings: {
-      persyaratan: 0,
-      prosedur: 0,
-      waktu: 0,
-      biaya: 0,
-      produk: 0,
-      kompetensi: 0,
-      perilaku: 0,
-      sarpras: 0,
-      pengaduan: 0
-    },
+    ratings: questions.reduce((acc: any, q: any) => ({ ...acc, [q.id]: 0 }), {}),
     saran: ''
   });
-
-  const questions = [
-    { id: 'persyaratan', label: 'Persyaratan', question: 'Kesesuaian persyaratan pelayanan dengan jenis pelayanannya.' },
-    { id: 'prosedur', label: 'Prosedur', question: 'Kemudahan tahapan pelayanan yang diberikan (kesederhanaan alur).' },
-    { id: 'waktu', label: 'Waktu Pelayanan', question: 'Kecepatan dan ketepatan waktu dalam penyelesaian pelayanan.' },
-    { id: 'biaya', label: 'Biaya/Tarif', question: 'Kewajaran biaya/tarif dalam mendapatkan pelayanan (termasuk jika gratis).' },
-    { id: 'produk', label: 'Produk Spesifikasi', question: 'Kesesuaian hasil pelayanan yang diterima dengan ketentuan yang ditetapkan.' },
-    { id: 'kompetensi', label: 'Kompetensi Pelaksana', question: 'Kemampuan, pengetahuan, dan keterampilan petugas dalam memberikan pelayanan.' },
-    { id: 'perilaku', label: 'Perilaku Pelaksana', question: 'Sikap petugas dalam memberikan pelayanan terkait kesopanan dan keramahan.' },
-    { id: 'sarpras', label: 'Sarana & Prasarana', question: 'Kualitas dan kenyamanan sarana prasarana pendukung pelayanan.' },
-    { id: 'pengaduan', label: 'Penanganan Pengaduan', question: 'Respon dan tata cara penanganan pengaduan, saran, dan masukan.' }
-  ];
 
   const ratingLabels = [
     { value: 1, label: 'Sangat Tidak Setuju', color: 'bg-red-500' },
@@ -857,8 +907,8 @@ function SKMSurveyModal({ onClose, settings, services }: { onClose: () => void, 
     setLoading(true);
     try {
       // Calculate overall score
-      const values = Object.values(formData.ratings);
-      const totalScore = values.reduce((a, b) => a + b, 0);
+      const values = Object.values(formData.ratings) as number[];
+      const totalScore = values.reduce((a: number, b: number) => a + b, 0);
       const averageScore = totalScore / values.length;
 
       await setDoc(doc(collection(db, 'skm_surveys')), {
@@ -877,7 +927,7 @@ function SKMSurveyModal({ onClose, settings, services }: { onClose: () => void, 
 
   const isStepComplete = () => {
     if (step === 1) return formData.layanan !== '';
-    if (step === 2) return Object.values(formData.ratings).every(v => v > 0);
+    if (step === 2) return Object.values(formData.ratings).every((v: any) => Number(v) > 0);
     return true;
   };
 
@@ -941,7 +991,30 @@ function SKMSurveyModal({ onClose, settings, services }: { onClose: () => void, 
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-8 pt-0 custom-scrollbar">
-           {step === 1 && (
+           {settings?.externalUrl ? (
+             <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6 text-center">
+                <div className="p-6 bg-blue-50 rounded-[2rem] border border-blue-100 mb-8">
+                   <p className="text-blue-800 font-medium text-sm leading-relaxed">
+                     {settings?.popupDescription || 'Bantu kami mengukur kualitas pelayanan Tim Tata Laksana & Kepegawaian agar semakin profesional dan berdampak bagi seluruh Civitas Akademika.'}
+                   </p>
+                </div>
+                <p className="text-slate-500 mb-6">Survei ini dilakukan melalui platform pihak ketiga.</p>
+                <div className="flex justify-center flex-col sm:flex-row gap-4 mt-8">
+                    <button onClick={onClose} className="px-6 py-4 rounded-xl font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors">
+                      Nanti Saja
+                    </button>
+                    <a 
+                      href={settings.externalUrl} 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      onClick={onClose}
+                      className="px-8 py-4 rounded-xl font-bold bg-amber-500 text-white hover:bg-amber-600 transition-colors shadow-lg shadow-amber-500/30 flex items-center justify-center gap-2"
+                    >
+                      Buka Formulir SKM <span className="text-xl">→</span>
+                    </a>
+                </div>
+             </motion.div>
+           ) : step === 1 ? (
              <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
                 <div className="p-6 bg-blue-50 rounded-[2rem] border border-blue-100 mb-8">
                    <p className="text-blue-800 font-medium text-sm leading-relaxed">
@@ -989,7 +1062,7 @@ function SKMSurveyModal({ onClose, settings, services }: { onClose: () => void, 
                    </select>
                 </div>
              </motion.div>
-           )}
+           ) : null}
 
            {step === 2 && (
              <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-10 pb-8">
@@ -1055,31 +1128,33 @@ function SKMSurveyModal({ onClose, settings, services }: { onClose: () => void, 
         </div>
 
         {/* Footer Navigation */}
-        <div className="p-8 border-t border-slate-50 flex items-center justify-between bg-slate-50/50">
-           {step > 1 ? (
-             <button 
-               onClick={() => setStep(step - 1)}
-               className="px-6 py-3 rounded-xl font-bold text-slate-500 hover:text-slate-800 transition-colors"
-             >
-               Kembali
-             </button>
-           ) : (
-             <div />
-           )}
-           
-           <button 
-             onClick={step === 3 ? handleSubmit : () => setStep(step + 1)}
-             disabled={!isStepComplete() || loading}
-             className={cn(
-               "px-8 py-3 rounded-xl font-black text-white shadow-xl transition-all flex items-center gap-2",
-               isStepComplete() ? "bg-amber-500 hover:bg-amber-600 shadow-amber-500/20" : "bg-slate-300 cursor-not-allowed"
+        {!settings?.externalUrl && (
+          <div className="p-8 border-t border-slate-50 flex items-center justify-between bg-slate-50/50">
+             {step > 1 ? (
+               <button 
+                 onClick={() => setStep(step - 1)}
+                 className="px-6 py-3 rounded-xl font-bold text-slate-500 hover:text-slate-800 transition-colors"
+               >
+                 Kembali
+               </button>
+             ) : (
+               <div />
              )}
-           >
-              {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-              {step === 3 ? (loading ? 'MENGIRIM...' : 'KIRIM SURVEI') : 'LANJUT'}
-              {step < 3 && <ArrowRight className="w-4 h-4" />}
-           </button>
-        </div>
+             
+             <button 
+               onClick={step === 3 ? handleSubmit : () => setStep(step + 1)}
+               disabled={!isStepComplete() || loading}
+               className={cn(
+                 "px-8 py-3 rounded-xl font-black text-white shadow-xl transition-all flex items-center gap-2",
+                 isStepComplete() ? "bg-amber-500 hover:bg-amber-600 shadow-amber-500/20" : "bg-slate-300 cursor-not-allowed"
+               )}
+             >
+                {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+                {step === 3 ? (loading ? 'MENGIRIM...' : 'KIRIM SURVEI') : 'LANJUT'}
+                {step < 3 && <ArrowRight className="w-4 h-4" />}
+             </button>
+          </div>
+        )}
       </motion.div>
     </motion.div>
   );
@@ -1247,12 +1322,8 @@ function ServiceDetailModal({ service, onClose, theme }: { service: any, onClose
                             <div className="w-3 h-3 rounded-full bg-amber-400"></div>
                             <div className="w-3 h-3 rounded-full bg-green-400"></div>
                           </div>
-                          <a href={service.sopUrl} target="_blank" rel="noopener noreferrer" className="text-xs font-bold text-blue-600 hover:underline flex items-center gap-1">
-                            <span>Buka di Tab Baru</span>
-                            <ExternalLink className="w-3 h-3" />
-                          </a>
                         </div>
-                        <iframe key={`sop-${service.sopUrl}`} src={service.sopUrl.includes('drive.google.com') ? service.sopUrl.replace('/view', '/preview') : service.sopUrl} className="w-full flex-1" style={{ border: 'none' }} title="Preview SOP" />
+                        <PdfIframe url={service.sopUrl} title={`Preview SOP for ${service.title}`} />
                       </div>
                     ) : (
                       <>
@@ -1379,6 +1450,11 @@ function LayananView({ content, onOpenSKM }: { content: any, onOpenSKM: () => vo
         return;
       }
       
+      if (skmSettings.externalUrl) {
+        window.open(skmSettings.externalUrl, '_blank', 'noopener,noreferrer');
+        return;
+      }
+      
       onOpenSKM();
       return;
     }
@@ -1477,7 +1553,7 @@ function LayananView({ content, onOpenSKM }: { content: any, onOpenSKM: () => vo
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 lg:py-24 animate-in fade-in">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-20 lg:py-24 animate-in fade-in">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 mb-16">
         <div className="max-w-2xl text-left">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-slate-900 text-white text-[10px] font-black uppercase tracking-[0.2em] mb-4 shadow-xl shadow-slate-200">
@@ -1723,9 +1799,10 @@ function ProfilView({ content }: { content: any }) {
   if (!content) return null;
   const profile = content.profile || { description: "", functions: [], members: [] };
   
-  const leader = profile.members[0];
-  const deputy = profile.members[1];
-  const staff = profile.members.slice(2);
+  const leader = profile.members?.[0];
+  const deputy = profile.members?.[1];
+  const head = profile.members?.[2];
+  const staff = profile.members?.slice(3) || [];
 
   const MemberNode = ({ member, type }: { member: any, type: 'leader' | 'deputy' | 'staff' }) => {
     if (!member) return null;
@@ -1734,8 +1811,8 @@ function ProfilView({ content }: { content: any }) {
         <motion.div 
           whileHover={{ y: -8, scale: 1.02 }}
           className={cn(
-            "relative rounded-[3rem] border border-white/40 glass overflow-hidden flex flex-col shrink-0 transition-all duration-500 hover:shadow-2xl hover:shadow-slate-300/40 group/card", 
-            type === 'leader' ? 'w-72 h-96' : type === 'deputy' ? 'w-64 h-80' : 'w-56 h-72'
+            "relative rounded-[2rem] border border-white/40 glass overflow-hidden flex flex-col shrink-0 transition-all duration-500 hover:shadow-2xl hover:shadow-slate-300/40 group/card", 
+            type === 'leader' ? 'w-48 h-64' : type === 'deputy' ? 'w-44 h-60' : 'w-40 h-56'
           )}
         >
             {/* Photo */}
@@ -1751,17 +1828,16 @@ function ProfilView({ content }: { content: any }) {
             </div>
             
             {/* Information */}
-            <div className="relative z-10 flex-1 p-6 pt-0 text-center flex flex-col justify-center">
-              <div className="font-black text-[9px] uppercase tracking-[0.3em] text-amber-600 mb-2">{type === 'leader' ? 'Ketua Tim' : type === 'deputy' ? 'Sekretariat' : 'Anggota'}</div>
-              <div className="font-black text-sm tracking-tighter text-slate-900 line-clamp-2 leading-tight mb-2 uppercase group-hover/card:text-amber-700 transition-colors">{member.name}</div>
-              <div className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-400 group-hover/card:text-slate-600 transition-colors">{member.role}</div>
+            <div className="relative z-10 flex-1 p-4 pt-0 text-center flex flex-col justify-center">
+              <div className="font-black text-[8px] uppercase tracking-[0.3em] text-amber-600 mb-1 line-clamp-2">{member.role || (type === 'leader' ? 'Ketua Tim' : type === 'deputy' ? 'Sekretariat' : 'Anggota')}</div>
+              <div className="font-black text-xs tracking-tighter text-slate-900 line-clamp-2 leading-tight uppercase group-hover/card:text-amber-700 transition-colors">{member.name}</div>
             </div>
         </motion.div>
     );
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-32 animate-in fade-in slide-in-from-bottom-8 duration-1000 space-y-36">
+    <div className="max-w-6xl mx-auto px-4 py-32 animate-in fade-in slide-in-from-bottom-8 duration-1000 space-y-36">
         {/* Intro Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
             <motion.div 
@@ -1816,10 +1892,10 @@ function ProfilView({ content }: { content: any }) {
             {/* Background Accent */}
             <div className="absolute top-0 right-0 w-96 h-96 bg-amber-500/5 rounded-full blur-[100px] -mr-20 -mt-20"></div>
 
-            <div className="text-center mb-24 space-y-6 relative z-10">
-                <h3 className="text-xs font-black text-amber-600 uppercase tracking-[0.4em]">Hierarchy</h3>
-                <h2 className="text-5xl md:text-6xl font-black text-slate-950 tracking-tighter">Struktur Organisasi</h2>
-                <div className="w-16 h-1.5 bg-slate-200 mx-auto rounded-full" />
+            <div className="text-center mb-16 space-y-4 relative z-10">
+                <h3 className="text-[10px] font-black text-amber-600 uppercase tracking-[0.4em]">Hierarchy</h3>
+                <h2 className="text-4xl md:text-5xl font-black text-slate-950 tracking-tighter">Struktur Organisasi</h2>
+                <div className="w-12 h-1.5 bg-slate-200 mx-auto rounded-full" />
             </div>
             
             <div className="flex justify-center overflow-x-auto pb-12 no-scrollbar">
@@ -1850,7 +1926,15 @@ function ProfilView({ content }: { content: any }) {
                             </div>
                         )}
 
-                        {/* Level 3: Staff Grid with Integrated Connectors */}
+                        {/* Level 3: Head */}
+                        {head && (
+                            <div className="flex flex-col items-center">
+                                <MemberNode member={head} type="deputy" />
+                                <div className="h-16 w-0.5 bg-slate-200" />
+                            </div>
+                        )}
+
+                        {/* Level 4: Staff Grid with Integrated Connectors */}
                         <div className="w-full max-w-6xl">
                             <div className="grid grid-cols-4 w-full h-16">
                                 <div className="relative">
@@ -1871,10 +1955,10 @@ function ProfilView({ content }: { content: any }) {
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-4 gap-10">
+                            <div className="grid grid-cols-4 gap-4">
                                 {[0, 1, 2, 3].map((colIdx) => (
                                     <div key={colIdx} className="flex flex-col items-center">
-                                         <div className="flex flex-col gap-10 items-center">
+                                         <div className="flex flex-col gap-6 items-center">
                                              {staff.slice(colIdx * 3, colIdx * 3 + 3).map((m: any, rowIdx: number) => {
                                                  return (
                                                     <React.Fragment key={rowIdx}>

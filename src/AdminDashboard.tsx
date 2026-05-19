@@ -5,7 +5,7 @@ import { cn } from './lib/utils';
 import { signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
 import { doc, getDoc, setDoc, onSnapshot, serverTimestamp, collection, query, orderBy } from 'firebase/firestore';
 import { PORTAL_CONTENT } from './data/portalData';
-import { Plus, Trash, ArrowUp, ArrowDown, ExternalLink, GripVertical, Scale, BookOpen, FileSignature, Settings, Users, Search, ArrowLeft, Save, CheckCircle2, Activity, TrendingUp, FileText, LogOut, Lock as LockIcon } from 'lucide-react';
+import { Plus, Trash, ArrowUp, ArrowDown, ExternalLink, GripVertical, Scale, BookOpen, FileSignature, Settings, Users, Search, ArrowLeft, Save, CheckCircle2, Activity, TrendingUp, FileText, LogOut, Lock as LockIcon, X } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -53,13 +53,54 @@ function SortableItem(props: { id: string; children: React.ReactNode }) {
   );
 }
 
-function PanduanEditor({ services }: { services: any[] }) {
+function usePdfUrl(url: string | undefined): string | undefined {
+  const [blobUrl, setBlobUrl] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    if (!url) {
+      setBlobUrl(undefined);
+      return;
+    }
+    if (!url.startsWith('data:')) {
+      setBlobUrl(url);
+      return;
+    }
+
+    let isMounted = true;
+    let createdUrl = '';
+
+    fetch(url)
+      .then(res => res.blob())
+      .then(blob => {
+        if (!isMounted) return;
+        createdUrl = URL.createObjectURL(blob);
+        setBlobUrl(createdUrl);
+      })
+      .catch(e => {
+        console.error("Failed to convert data URL to blob", e);
+        if (isMounted) setBlobUrl(url);
+      });
+
+    return () => {
+      isMounted = false;
+      if (createdUrl) {
+         URL.revokeObjectURL(createdUrl);
+      }
+    };
+  }, [url]);
+
+  return blobUrl;
+}
+
+function PanduanEditor({ services, settings }: { services: any[], settings: any }) {
   const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
   const [detail, setDetail] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [existingDetails, setExistingDetails] = useState<string[]>([]);
+  
+  const objectUrl = usePdfUrl(detail?.sopUrl);
 
   // Track which services already have content in Firestore
   useEffect(() => {
@@ -321,7 +362,10 @@ function PanduanEditor({ services }: { services: any[] }) {
               try {
                 await setDoc(doc(db, 'service_details', selectedSlug), { ...detail, updatedAt: serverTimestamp() });
                 alert('Detail Panduan Layanan Berhasil Disimpan!');
-              } catch(e) { handleFirestoreError(e, OperationType.UPDATE, `service_details/${selectedSlug}`); }
+              } catch(e: any) { 
+                console.error("Gagal menyimpan:", e);
+                alert(`Gagal menyimpan data. Pastikan ukuran dokumen SOP (Base64) tidak terlalu besar. Error: ${e.message}`);
+              }
               setSaving(false);
             }} 
             disabled={saving} 
@@ -580,30 +624,37 @@ function PanduanEditor({ services }: { services: any[] }) {
                           type="file" 
                           accept="application/pdf,image/*" 
                           className="hidden" 
-                          onChange={async (e) => {
+                          onChange={(e) => {
                             const file = e.target.files?.[0];
                             if (!file) return;
                             
-                            if (file.size > 5 * 1024 * 1024) {
-                              alert("File terlalu besar (maks 5MB)");
+                            // Batas wajar untuk base64 di Firestore adalah maksimum 1MB per dokumen.
+                            // Oleh karena itu kami batasi file size menjadi 600KB agar aman.
+                            if (file.size > 600 * 1024) {
+                              alert("Ukuran file melebihi batas 600KB. Karena disimpan langsung di database, harap kompres PDF Anda terlebih dahulu, atau gunakan Google Drive dan salin link-nya.");
+                              // Clear the input value so user can try again
+                              e.target.value = '';
                               return;
                             }
 
                             setSaving(true);
                             try {
-                              if (!storage) {
-                                throw new Error("Firebase Storage service is not initialized. Please check your configuration.");
-                              }
-                              const storageRef = ref(storage, `sop_files/${selectedSlug}_${Date.now()}_${file.name}`);
-                              await uploadBytes(storageRef, file);
-                              const url = await getDownloadURL(storageRef);
-                              setDetail({...detail, sopUrl: url});
-                              alert("Berhasil mengunggah dokumen!");
+                              const reader = new FileReader();
+                              reader.onloadend = () => {
+                                setDetail({...detail, sopUrl: reader.result as string});
+                                alert("Berhasil menyiapkan dokumen! Silakan klik 'SIMPAN PERUBAHAN' untuk memperbarui.");
+                                setSaving(false);
+                              };
+                              reader.onerror = () => {
+                                alert("Gagal membaca file.");
+                                setSaving(false);
+                              };
+                              reader.readAsDataURL(file);
                             } catch (error) {
                               console.error("Upload error:", error);
-                              alert("Gagal mengunggah file. Pastikan Firebase Storage sudah aktif & rules mengizinkan write.");
+                              alert("Gagal memproses file.");
+                              setSaving(false);
                             }
-                            setSaving(false);
                           }}
                         />
                       </label>
@@ -612,11 +663,19 @@ function PanduanEditor({ services }: { services: any[] }) {
                   <div className="space-y-4">
                     <label className="block text-sm font-bold text-slate-700">Atau Gunakan Link URL</label>
                     <input 
-                      type="url" 
-                      value={detail.sopUrl || ''} 
-                      onChange={e => setDetail({...detail, sopUrl: e.target.value})}
+                      type="text" 
+                      value={detail.sopUrl?.startsWith('data:') ? 'Dokumen: (Base64 Encoded)' : (detail.sopUrl || '')} 
+                      onChange={e => {
+                        if (e.target.value !== 'Dokumen: (Base64 Encoded)') {
+                          setDetail({...detail, sopUrl: e.target.value});
+                        }
+                      }}
+                      disabled={detail.sopUrl?.startsWith('data:')}
                       placeholder="https://drive.google.com/... atau url lain"
-                      className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none flex-1 font-medium text-sm"
+                      className={cn(
+                        "w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none flex-1 font-medium text-sm",
+                        detail.sopUrl?.startsWith('data:') ? "bg-slate-100 text-slate-500 cursor-not-allowed" : "bg-white"
+                      )}
                     />
                   </div>
                 </div>
@@ -629,18 +688,28 @@ function PanduanEditor({ services }: { services: any[] }) {
                          <Trash className="w-3.5 h-3.5" />
                        </button>
                     </div>
-                    {detail.sopUrl.toLowerCase().endsWith('.pdf') || detail.sopUrl.includes('firebasestorage') || detail.sopUrl.includes('drive.google.com') ? (
-                      <iframe 
-                        src={detail.sopUrl.includes('drive.google.com') ? detail.sopUrl.replace('/view', '/preview') : detail.sopUrl} 
-                        className="w-full aspect-[4/3] border-none" 
-                        title="SOP Preview"
-                      />
+                    {detail.sopUrl.toLowerCase().endsWith('.pdf') || detail.sopUrl.includes('firebasestorage') || detail.sopUrl.includes('drive.google.com') || (detail.sopUrl.startsWith('data:') && detail.sopUrl.includes('application/pdf')) ? (
+                      <div className="w-full flex-col flex items-center justify-center p-4 bg-slate-50 border rounded-xl">
+                          <div className="mb-4 text-sm font-semibold text-slate-600 flex items-center gap-2">
+                             Preview SOP 
+                             <a href={detail.sopUrl.includes('drive.google.com') ? detail.sopUrl : objectUrl} target="_blank" rel="noopener noreferrer" className="px-3 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700 transition">
+                                Buka di Tab Baru
+                             </a>
+                          </div>
+                          <object 
+                            data={detail.sopUrl.includes('drive.google.com') ? detail.sopUrl.replace('/view', '/preview') : objectUrl} 
+                            type="application/pdf"
+                            className="w-full aspect-[4/3] border border-slate-200 rounded-lg bg-white" 
+                          >
+                            <p className="p-4 text-center">Browser Anda tidak mendukung preview PDF. <a href={objectUrl} target="_blank" className="text-blue-600 underline">Download PDF</a></p>
+                          </object>
+                      </div>
                     ) : (
-                      <img src={detail.sopUrl} alt="SOP Preview" className="w-full h-auto object-contain max-h-[500px]" />
+                      <img src={objectUrl} alt="SOP Preview" className="w-full h-auto object-contain max-h-[500px]" />
                     )}
                   </div>
                 )}
-                <p className="text-xs text-slate-500">File yang diunggah akan disimpan di Firebase Storage (Spark Plan Free Tier). Batas ukuran file adalah 5MB.</p>
+                <p className="text-xs text-slate-500">File yang diunggah akan disimpan langsung ke database (Base64). Batas maksimum per file adalah 800KB. Jika dokumen lebih besar, disarankan mencantumkan link dari platform berbagi file eksternal Anda.</p>
              </div>
            ) : (
             <div className="space-y-3">
@@ -688,12 +757,17 @@ function PanduanEditor({ services }: { services: any[] }) {
            </div>
            <div className="flex-1 space-y-2">
               <label className="text-[10px] font-black text-amber-900/40 uppercase tracking-[0.2em] mb-1 block">Penanggung Jawab (PIC)</label>
-              <input 
-                value={detail.pic} 
+              <select 
+                value={detail.pic || ''} 
                 onChange={e => setDetail({...detail, pic: e.target.value})} 
-                className="block w-full bg-transparent text-3xl font-black text-amber-900 border-b border-amber-200 outline-none focus:border-amber-500 pb-2" 
-                placeholder="Nama Lengkap & Gelar PIC" 
-              />
+                className="block w-full bg-transparent text-3xl font-black text-amber-900 border-b border-amber-200 outline-none focus:border-amber-500 pb-2 appearance-none cursor-pointer" 
+              >
+                <option value="" disabled>Pilih Penanggung Jawab...</option>
+                {settings?.profile?.members?.map((member: any, i: number) => (
+                  <option key={i} value={member.name}>{member.name} - {member.role}</option>
+                ))}
+                <option value="Tim Tata Laksana & Kepegawaian">Tim Tata Laksana & Kepegawaian (Default)</option>
+              </select>
               <p className="text-amber-700/60 font-bold text-xs uppercase tracking-widest">Tim Kerja Tata Laksana & Kepegawaian</p>
            </div>
         </section>
@@ -1389,45 +1463,78 @@ export default function AdminDashboard({ onExit }: { onExit?: () => void }) {
                    </div>
                    <div>
                       <label className="block text-sm font-bold text-slate-700 mb-2">Anggota Tim</label>
+                      <p className="text-xs text-slate-500 mb-3">Tarik ikon <GripVertical className="inline w-4 h-4 text-slate-400" /> untuk mengurutkan. Sistem menggunakan urutan ini untuk menentukan hierarki (Level 1: Pemimpin Tertinggi, Level 2: Sekretaris, Level 3: Katim, Level 4: Anggota).</p>
+                      
                       <div className="space-y-3">
-                          {settings.profile?.members?.map((m: any, idx: number) => (
-                               <div key={idx} className="flex gap-4 items-center p-3 border rounded bg-slate-50">
-                                   <div className="w-16 h-16 bg-slate-200 rounded shrink-0 overflow-hidden">
-                                      {m.imageUrl ? <img src={m.imageUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-slate-400">?</div>}
-                                   </div>
-                                   <div className="flex-1 space-y-1">
-                                      <input value={m.name} onChange={(e) => {
-                                          const newMembers = [...settings.profile.members];
-                                          newMembers[idx] = {...newMembers[idx], name: e.target.value};
-                                          updateSettingNode('profile', 'members', newMembers);
-                                      }} className="w-full border rounded px-2 py-1 text-sm font-semibold" placeholder="Nama" />
-                                      <input value={m.role} onChange={(e) => {
-                                          const newMembers = [...settings.profile.members];
-                                          newMembers[idx] = {...newMembers[idx], role: e.target.value};
-                                          updateSettingNode('profile', 'members', newMembers);
-                                      }} className="w-full border rounded px-2 py-1 text-sm" placeholder="Jabatan" />
-                                   </div>
-                                   <label className="shrink-0 text-xs bg-slate-200 px-3 py-2 rounded cursor-pointer hover:bg-slate-300">
-                                      Foto
-                                      <input type="file" accept="image/*" onChange={(e) => {
-                                         const file = e.target.files?.[0];
-                                         if (!file) return;
-                                         const reader = new FileReader();
-                                         reader.onload = (event) => {
-                                             const newMembers = [...settings.profile.members];
-                                             newMembers[idx] = {...newMembers[idx], imageUrl: event.target?.result as string};
-                                             updateSettingNode('profile', 'members', newMembers);
-                                         };
-                                         reader.readAsDataURL(file);
-                                      }} className="hidden" />
-                                   </label>
-                                   <button onClick={() => {
-                                       const newMembers = settings.profile.members.filter((_: any, i: number) => i !== idx);
-                                       updateSettingNode('profile', 'members', newMembers);
-                                   }} className="text-red-500 hover:text-red-700 p-1"><Trash className="w-4 h-4"/></button>
-                               </div>
-                          ))}
-                          <button onClick={() => updateSettingNode('profile', 'members', [...settings.profile.members, { name: '', role: '', imageUrl: '' }])} className="w-full text-sm bg-blue-50 text-blue-600 py-2 rounded font-semibold">+ Tambah Anggota</button>
+                         <DndContext
+                            collisionDetection={closestCenter}
+                            onDragEnd={(event) => {
+                                const { active, over } = event;
+                                if (over && active.id !== over.id) {
+                                   const members = settings.profile?.members || [];
+                                   const oldIndex = members.findIndex((m: any, idx: number) => (m.id || m.name || `member-${idx}`) === active.id);
+                                   const newIndex = members.findIndex((m: any, idx: number) => (m.id || m.name || `member-${idx}`) === over.id);
+                                   if (oldIndex !== -1 && newIndex !== -1) {
+                                       updateSettingNode('profile', 'members', arrayMove(members, oldIndex, newIndex));
+                                   }
+                                }
+                            }}
+                         >
+                            <SortableContext 
+                               items={(settings.profile?.members || []).map((m: any, idx: number) => m.id || m.name || `member-${idx}`)} 
+                               strategy={verticalListSortingStrategy}
+                            >
+                               {settings.profile?.members?.map((m: any, idx: number) => {
+                                   const myId = m.id || m.name || `member-${idx}`;
+                                   return (
+                                     <SortableItem key={myId} id={myId}>
+                                       <div className="flex gap-4 items-center p-3 border rounded bg-slate-50 group hover:border-blue-300 transition-colors">
+                                           <div className="w-16 h-16 bg-slate-200 rounded shrink-0 overflow-hidden shadow-inner">
+                                              {m.imageUrl ? <img src={m.imageUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-slate-400">?</div>}
+                                           </div>
+                                           <div className="flex-1 space-y-1">
+                                              <div className="mb-2">
+                                                 {idx === 0 && <span className="bg-amber-100 text-amber-800 text-[10px] px-2 py-1 rounded uppercase font-bold shadow-sm">Level 1: Pemimpin Tertinggi</span>}
+                                                 {idx === 1 && <span className="bg-amber-100 text-amber-800 text-[10px] px-2 py-1 rounded uppercase font-bold shadow-sm">Level 2: Sekretariat</span>}
+                                                 {idx === 2 && <span className="bg-amber-100 text-amber-800 text-[10px] px-2 py-1 rounded uppercase font-bold shadow-sm">Level 3: Ketua Tim</span>}
+                                                 {idx >= 3 && <span className="bg-slate-200 text-slate-600 text-[10px] px-2 py-1 rounded uppercase font-bold shadow-sm">Level 4: Anggota</span>}
+                                              </div>
+                                              <input value={m.name} onChange={(e) => {
+                                                  const newMembers = [...settings.profile.members];
+                                                  newMembers[idx] = {...newMembers[idx], name: e.target.value};
+                                                  updateSettingNode('profile', 'members', newMembers);
+                                              }} className="w-full border border-transparent hover:border-slate-300 focus:border-blue-500 rounded px-2 py-1 text-sm font-semibold outline-none transition-colors" placeholder="Nama" />
+                                              <input value={m.role} onChange={(e) => {
+                                                  const newMembers = [...settings.profile.members];
+                                                  newMembers[idx] = {...newMembers[idx], role: e.target.value};
+                                                  updateSettingNode('profile', 'members', newMembers);
+                                              }} className="w-full border border-transparent hover:border-slate-300 focus:border-blue-500 rounded px-2 py-1 text-sm outline-none transition-colors" placeholder="Jabatan / Peran" />
+                                           </div>
+                                           <label className="shrink-0 text-xs bg-white border border-slate-200 shadow-sm px-3 py-2 rounded cursor-pointer hover:bg-slate-100 transition-colors font-semibold">
+                                              Foto
+                                              <input type="file" accept="image/*" onChange={(e) => {
+                                                 const file = e.target.files?.[0];
+                                                 if (!file) return;
+                                                 const reader = new FileReader();
+                                                 reader.onload = (event) => {
+                                                     const newMembers = [...settings.profile.members];
+                                                     newMembers[idx] = {...newMembers[idx], imageUrl: event.target?.result as string};
+                                                     updateSettingNode('profile', 'members', newMembers);
+                                                 };
+                                                 reader.readAsDataURL(file);
+                                              }} className="hidden" />
+                                           </label>
+                                           <button onClick={() => {
+                                               const newMembers = settings.profile.members.filter((_: any, i: number) => i !== idx);
+                                               updateSettingNode('profile', 'members', newMembers);
+                                           }} className="text-red-400 hover:text-red-600 p-2 hover:bg-red-50 rounded-lg transition-colors" title="Hapus Anggota"><Trash className="w-4 h-4"/></button>
+                                       </div>
+                                     </SortableItem>
+                                   );
+                               })}
+                            </SortableContext>
+                         </DndContext>
+                         <button onClick={() => updateSettingNode('profile', 'members', [...settings.profile.members, { id: Math.random().toString(36).substring(7), name: '', role: '', imageUrl: '' }])} className="w-full text-sm bg-blue-50 text-blue-600 py-3 rounded-lg font-bold border border-blue-100 hover:bg-blue-100 transition-colors border-dashed">+ Tambah Anggota</button>
                       </div>
                    </div>
                  </div>
@@ -1772,7 +1879,7 @@ export default function AdminDashboard({ onExit }: { onExit?: () => void }) {
             )}
 
             {/* Panduan Layanan Tab */}
-            {activeTab === 'panduan' && <PanduanEditor services={settings.services || []} />}
+            {activeTab === 'panduan' && <PanduanEditor services={settings.services || []} settings={settings} />}
             
             {/* HASIL SKM Tab */}
             {activeTab === 'skm' && (
@@ -1874,6 +1981,85 @@ export default function AdminDashboard({ onExit }: { onExit?: () => void }) {
                           value={settings.skmSettings?.popupDescription || ''} 
                           onChange={(e) => updateSettingNode('skmSettings', 'popupDescription', e.target.value)}
                           className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all h-24"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center justify-between">
+                          <span>Daftar Pertanyaan Survei (SKM)</span>
+                          <span className="text-[10px] text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full normal-case tracking-normal">Bawaan</span>
+                        </label>
+                        <p className="text-xs text-slate-500 mb-4">Edit pertanyaan yang akan ditampilkan pada popup survei native. Biarkan jika ingin menggunakan format standar.</p>
+                        <div className="space-y-3">
+                          {(settings.skmSettings?.questions || []).map((q: any, i: number) => (
+                            <div key={i} className="flex gap-2">
+                              <input 
+                                type="text"
+                                value={q.label}
+                                onChange={(e) => {
+                                  const list = [...settings.skmSettings.questions];
+                                  list[i].label = e.target.value;
+                                  updateSettingNode('skmSettings', 'questions', list);
+                                }}
+                                className="w-1/3 bg-slate-50 border border-slate-100 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500/20"
+                                placeholder="Label (Singkat)"
+                              />
+                              <input 
+                                type="text"
+                                value={q.question}
+                                onChange={(e) => {
+                                  const list = [...settings.skmSettings.questions];
+                                  list[i].question = e.target.value;
+                                  updateSettingNode('skmSettings', 'questions', list);
+                                }}
+                                className="flex-1 bg-slate-50 border border-slate-100 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500/20"
+                                placeholder="Pertanyaan Lengkap"
+                              />
+                              <button
+                                onClick={() => {
+                                  const list = settings.skmSettings.questions.filter((_:any, index:number) => index !== i);
+                                  updateSettingNode('skmSettings', 'questions', list);
+                                }}
+                                className="w-10 flex-shrink-0 flex items-center justify-center bg-red-50 text-red-500 rounded-xl hover:bg-red-100"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                          ))}
+                          <button
+                            onClick={() => {
+                              const list = [...(settings.skmSettings?.questions || [])];
+                              // Default list if empty
+                              if (list.length === 0) {
+                                const defaults = [
+                                  { id: 'persyaratan', label: 'Persyaratan', question: 'Kesesuaian persyaratan pelayanan dengan jenis pelayanannya.' },
+                                  { id: 'prosedur', label: 'Prosedur', question: 'Kemudahan tahapan pelayanan yang diberikan.' },
+                                  { id: 'waktu', label: 'Waktu Pelayanan', question: 'Kecepatan dan ketepatan waktu dalam penyelesaian.' }
+                                ];
+                                updateSettingNode('skmSettings', 'questions', defaults);
+                              } else {
+                                list.push({ id: `q_${Date.now()}`, label: '', question: '' });
+                                updateSettingNode('skmSettings', 'questions', list);
+                              }
+                            }}
+                            className="text-xs font-bold text-blue-600 bg-blue-50 px-4 py-2 rounded-xl hover:bg-blue-100 transition-colors w-full text-center"
+                          >
+                            + {(!settings.skmSettings?.questions || settings.skmSettings.questions.length === 0) ? 'Muat Format Standar / Tambah' : 'Tambah Pertanyaan'}
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="pt-6 mt-6 border-t border-slate-100">
+                        <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center justify-between">
+                          <span>Atau Gunakan Formulir Pihak Ketiga</span>
+                          <span className="text-[10px] text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full normal-case tracking-normal">Opsional</span>
+                        </label>
+                        <p className="text-xs text-slate-500 mb-2">Jika diisi (misal: link Google Form), klik Isi Survey akan langsung membuka link ini di tab baru alih-alih menampilkan popup di dalam web.</p>
+                        <input 
+                          type="url"
+                          value={settings.skmSettings?.externalUrl || ''} 
+                          onChange={(e) => updateSettingNode('skmSettings', 'externalUrl', e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-mono text-sm"
+                          placeholder="https://forms.gle/..."
                         />
                       </div>
                     </div>

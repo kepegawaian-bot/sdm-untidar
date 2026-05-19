@@ -327,6 +327,7 @@ export const PORTAL_CONTENT = {
     popupCondition: 'every_visit', // 'every_visit', 'daily', 'weekly', 'monthly'
     popupTitle: 'Bantu Kami Meningkatkan Layanan',
     popupDescription: 'Mohon luangkan waktu sejenak untuk mengisi survei kepuasan masyarakat terhadap layanan SDM Universitas Tidar.',
+    externalUrl: '', // URL form SKM eksternal (misal: Google Form)
   }
 };
 
