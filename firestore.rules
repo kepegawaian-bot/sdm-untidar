@@ -80,7 +80,7 @@ service cloud.firestore {
              data.alurSteps is list &&
              data.pic is string && data.pic.size() <= 200 &&
              (!data.keys().hasAny(['jenisKenaikanPangkat']) || data.jenisKenaikanPangkat is list) &&
-             data.updatedAt == request.time;
+             data.updatedAt is timestamp;
     }
 
     // --- Paths ---

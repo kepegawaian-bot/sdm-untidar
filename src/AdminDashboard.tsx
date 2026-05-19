@@ -776,7 +776,11 @@ function PanduanEditor({ services, settings }: { services: any[], settings: any 
                  alert('Detail Panduan Layanan Berhasil Disimpan!');
                } catch(e: any) { 
                  console.error("Gagal menyimpan:", e);
-                 alert(`Gagal menyimpan data. Pastikan ukuran dokumen SOP (Base64) tidak terlalu besar. Error: ${e.message}`);
+                 let msg = e.message;
+                 if (msg.includes("permission-denied")) {
+                    msg = "Hak akses ditolak. Anda tidak memiliki izin untuk menyimpan perubahan ini.";
+                 }
+                 alert(`Gagal menyimpan data. Error: ${msg}`);
                }
                setSaving(false);
              }} 
@@ -2066,7 +2070,7 @@ export default function AdminDashboard({ onExit }: { onExit?: () => void }) {
                         <p className="text-xs text-slate-500 mb-4">Edit pertanyaan yang akan ditampilkan pada popup survei native. Biarkan jika ingin menggunakan format standar.</p>
                         <div className="space-y-3">
                           {(settings.skmSettings?.questions || []).map((q: any, i: number) => (
-                            <div key={i} className="flex gap-2">
+                            <div key={q.question || i} className="flex gap-2">
                               <input 
                                 type="text"
                                 value={q.label}
