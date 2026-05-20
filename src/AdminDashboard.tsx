@@ -53,6 +53,94 @@ function SortableItem(props: { id: string; children: React.ReactNode }) {
   );
 }
 
+// ==========================================
+// TOAST NOTIFICATIONS & DIAGNOSTICS HELPERS
+// ==========================================
+export interface Toast {
+  id: string;
+  type: 'success' | 'error' | 'loading' | 'info';
+  message: string;
+  details?: string;
+}
+
+export const showToast = (message: string, type: 'success' | 'error' | 'loading' | 'info' = 'info', details?: string, duration?: number) => {
+  console.log(`[AppToast] [${type.toUpperCase()}] ${message}`, details ? `| Details: ${details}` : '');
+  const event = new CustomEvent('app-toast', {
+    detail: { type, message, details, duration }
+  });
+  window.dispatchEvent(event);
+};
+
+export const clearLoadingToasts = () => {
+  window.dispatchEvent(new CustomEvent('app-toast-clear-loading'));
+};
+
+// ==========================================
+// ERROR BOUNDARY COMPONENT DEFINITION
+// ==========================================
+export class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean; error: any }> {
+  constructor(props: any) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: any) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: any, errorInfo: any) {
+    console.error("ErrorBoundary caught an error:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-slate-900 text-slate-100 flex items-center justify-center p-6 font-sans">
+          <div className="max-w-2xl w-full bg-slate-800 border-2 border-red-500/30 rounded-[2.5rem] p-10 shadow-2xl space-y-6">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-2xl bg-red-500/20 flex flex-col items-center justify-center text-red-500 shrink-0">
+                <span className="text-2xl font-black">!</span>
+              </div>
+              <div>
+                <h1 className="text-2xl font-black text-white tracking-tight">ErrorBoundary: Terjadi Kesalahan Render</h1>
+                <p className="text-slate-400 text-sm">Dashboard mengalami kegagalan render internal.</p>
+              </div>
+            </div>
+
+            <div className="bg-slate-950 p-6 rounded-2xl text-xs font-mono space-y-2 text-red-300 overflow-auto max-h-60 border border-slate-705/50">
+              <p className="font-bold text-white mb-1">Informasi Diagnostik:</p>
+              <pre className="whitespace-pre-wrap">{this.state.error?.stack || this.state.error?.message || String(this.state.error)}</pre>
+            </div>
+
+            <div className="flex gap-4">
+              <button 
+                onClick={() => window.location.reload()}
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white font-black py-4 px-6 rounded-2xl text-center self-center transition-all shadow-lg hover:scale-[1.02] active:scale-[0.98]"
+              >
+                Muat Ulang Halaman
+              </button>
+              <button 
+                onClick={() => {
+                  navigator.clipboard.writeText(JSON.stringify({
+                    error: this.state.error?.message,
+                    stack: this.state.error?.stack,
+                    user: auth.currentUser?.email
+                  }, null, 2));
+                  alert("Diagnostic info disalin ke clipboard!");
+                }}
+                className="bg-slate-700 hover:bg-slate-600 text-slate-300 font-black py-4 px-6 rounded-2xl transition-all hover:scale-[1.02] active:scale-[0.98]"
+              >
+                Salin Diagnostic Info
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 function usePdfUrl(url: string | undefined): string | undefined {
   const [blobUrl, setBlobUrl] = useState<string | undefined>(undefined);
 
@@ -124,7 +212,7 @@ function PanduanEditor({ services, settings }: { services: any[], settings: any 
       ...(cat.subCategories || []).flatMap((sub: any) => sub.items || [])
     ].map(item => ({
       ...item,
-      slug: item.title.toLowerCase().replace(/\s+/g, '-')
+      slug: item.title.toLowerCase().replace(/[^a-z0-9_\-]+/g, '-').replace(/-+/g, '-').replace(/(^-|-$)/g, '')
     }))
   })).filter(cat => cat.items.length > 0);
 
@@ -359,6 +447,14 @@ function PanduanEditor({ services, settings }: { services: any[], settings: any 
         type="button"
         onClick={async () => {
           setSaving(true);
+          showToast(`Menyimpan Panduan Layanan (${detail?.title || selectedSlug})...`, "loading");
+          
+          console.log("[DEBUG Save Service Detail] Current User Info:", {
+            uid: auth.currentUser?.uid,
+            email: auth.currentUser?.email,
+            emailVerified: auth.currentUser?.emailVerified
+          });
+
           try {
             const cleanPayload = {
               title: detail?.title || '',
@@ -372,11 +468,33 @@ function PanduanEditor({ services, settings }: { services: any[], settings: any 
               sopUrl: detail?.sopUrl || '',
               updatedAt: serverTimestamp()
             };
-            await setDoc(doc(db, 'service_details', selectedSlug), cleanPayload);
-            alert('Detail Panduan Layanan Berhasil Disimpan!');
+            
+            console.log("[DEBUG Save Service Detail] Document Path:", `service_details/${selectedSlug}`);
+            console.log("[DEBUG Save Service Detail] Payload:", cleanPayload);
+            
+            await setDoc(doc(db, 'service_details', selectedSlug), cleanPayload, { merge: true });
+            
+            console.log("[DEBUG Save Service Detail] Document successfully written!");
+            showToast('Detail Panduan Layanan Berhasil Disimpan!', 'success');
           } catch(e: any) { 
-            console.error("Gagal menyimpan:", e);
-            alert(`Gagal menyimpan data. Pastikan koneksi internet Anda stabil. Error: ${e.message}`);
+            console.error("[CRITICAL] Save Service Detail Error:", e);
+            let msg = e.message;
+            let tokenClaimsStr = "";
+            try {
+              if (auth.currentUser) {
+                const tokenResult = await auth.currentUser.getIdTokenResult(true);
+                tokenClaimsStr = JSON.stringify(tokenResult.claims, null, 2);
+              } else {
+                tokenClaimsStr = "Tidak ada pengguna aktif di auth instance.";
+              }
+            } catch (tokenErr) {
+              tokenClaimsStr = `Error mengambil token: ${tokenErr}`;
+            }
+
+            if (msg.includes("permission-denied") || msg.includes("Missing or insufficient permissions") || msg.includes("permissions")) {
+               msg = "Hak akses ditolak. Anda tidak memiliki izin untuk menyimpan perubahan ini atau format data tidak lengkap.";
+            }
+            showToast(`Gagal menyimpan data. Error: ${msg}`, 'error', `Code: ${e.code || 'N/A'}\nMessage: ${e.message}\nAkun Aktif: ${auth.currentUser?.email || 'Tidak ada'}\nUID: ${auth.currentUser?.uid || 'Tidak ada'}\nToken Claims:\n${tokenClaimsStr}`);
           } finally {
             setSaving(false);
           }
@@ -887,6 +1005,14 @@ function PanduanEditor({ services, settings }: { services: any[], settings: any 
            <button 
              onClick={async () => {
                setSaving(true);
+               showToast(`Menyimpan Panduan Layanan (${detail?.title || selectedSlug})...`, "loading");
+
+               console.log("[DEBUG Save Service Detail Bottom] Current User Info:", {
+                 uid: auth.currentUser?.uid,
+                 email: auth.currentUser?.email,
+                 emailVerified: auth.currentUser?.emailVerified
+               });
+
                try {
                  const cleanPayload = {
                    title: detail?.title || '',
@@ -900,15 +1026,21 @@ function PanduanEditor({ services, settings }: { services: any[], settings: any 
                    sopUrl: detail?.sopUrl || '',
                    updatedAt: serverTimestamp()
                  };
-                 await setDoc(doc(db, 'service_details', selectedSlug), cleanPayload);
-                 alert('Detail Panduan Layanan Berhasil Disimpan!');
+                 
+                 console.log("[DEBUG Save Service Detail Bottom] Document Path:", `service_details/${selectedSlug}`);
+                 console.log("[DEBUG Save Service Detail Bottom] Payload:", cleanPayload);
+
+                 await setDoc(doc(db, 'service_details', selectedSlug), cleanPayload, { merge: true });
+                 
+                 console.log("[DEBUG Save Service Detail Bottom] Document successfully written!");
+                 showToast('Detail Panduan Layanan Berhasil Disimpan!', 'success');
                } catch(e: any) { 
-                 console.error("Gagal menyimpan:", e);
+                 console.error("[CRITICAL] Save Service Detail Bottom Error:", e);
                  let msg = e.message;
-                 if (msg.includes("permission-denied") || msg.includes("Missing or insufficient permissions")) {
+                 if (msg.includes("permission-denied") || msg.includes("Missing or insufficient permissions") || msg.includes("permissions")) {
                     msg = "Hak akses ditolak. Anda tidak memiliki izin untuk menyimpan perubahan ini atau format data tidak lengkap.";
                  }
-                 alert(`Gagal menyimpan data. Error: ${msg}`);
+                 showToast(`Gagal menyimpan data. Error: ${msg}`, 'error', `Code: ${e.code || 'N/A'}\nMessage: ${e.message}\nAkun Aktif: ${auth.currentUser?.email || 'Tidak ada'}\nUID: ${auth.currentUser?.uid || 'Tidak ada'}`);
                } finally {
                  setSaving(false);
                }
@@ -1253,7 +1385,7 @@ function VisitorStats() {
   );
 }
 
-export default function AdminDashboard({ onExit }: { onExit?: () => void }) {
+function AdminDashboardInner({ onExit }: { onExit?: () => void }) {
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -1265,7 +1397,7 @@ export default function AdminDashboard({ onExit }: { onExit?: () => void }) {
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
       setUser(u);
-      if (u && u.email === 'kepegawaian@untidar.ac.id') {
+      if (u && (u.email === 'kepegawaian@untidar.ac.id' || u.email === 'mutohar.fauzi@gmail.com')) {
         try {
           const docRef = doc(db, 'site_settings', 'main');
           const unsubSettings = onSnapshot(docRef, (snap) => {
@@ -1361,26 +1493,54 @@ export default function AdminDashboard({ onExit }: { onExit?: () => void }) {
   const handleSave = async () => {
     if (!settings) return;
     setSaving(true);
+    showToast("Menyimpan semua perubahan ke database...", "loading");
+    
+    // Detailed token and claim diagnostics
+    let tokenClaimsStr = "";
     try {
-      // Ensure we have a clean object for Firestore
+      if (auth.currentUser) {
+        const tokenResult = await auth.currentUser.getIdTokenResult(true);
+        tokenClaimsStr = JSON.stringify(tokenResult.claims, null, 2);
+        console.log("[DEBUG Save Settings] Decoded Token Claims:", tokenResult.claims);
+      } else {
+        tokenClaimsStr = "Tidak ada pengguna aktif di auth instance.";
+      }
+    } catch (tokenErr) {
+      tokenClaimsStr = `Error mengambil token: ${tokenErr}`;
+      console.error("[DEBUG Save Settings] Token retrieval error:", tokenErr);
+    }
+    
+    // Debug info
+    console.log("[DEBUG Save Settings] Current User Info:", {
+      uid: auth.currentUser?.uid,
+      email: auth.currentUser?.email,
+      emailVerified: auth.currentUser?.emailVerified,
+      providerData: auth.currentUser?.providerData
+    });
+    
+    try {
       const dataToSave = JSON.parse(JSON.stringify(settings));
+      console.log("[DEBUG Save Settings] Document Payload:", dataToSave);
       
-      await setDoc(doc(db, 'site_settings', 'main'), {
+      const docRef = doc(db, 'site_settings', 'main');
+      await setDoc(docRef, {
         ...dataToSave,
         updatedAt: serverTimestamp()
       });
-      alert('Berhasil: Semua perubahan telah tersimpan ke database.');
+      
+      console.log("[DEBUG Save Settings] Document successfully written!");
+      showToast("Berhasil: Semua perubahan telah tersimpan ke database.", "success");
     } catch(e: any) {
-      console.error('Save Error:', e);
+      console.error('[CRITICAL] Save Error in site_settings/main:', e);
       let errorMsg = "Gagal menyimpan perubahan.";
       
-      if (e.message && e.message.includes("permission-denied")) {
-        errorMsg = "Akses Ditolak: Pastikan domain dashboard ini sudah didaftarkan di Firebase Console (Authorized Domains).";
+      if (e.message && (e.message.includes("permission-denied") || e.message.includes("permissions") || e.message.includes("Missing or insufficient permissions"))) {
+        errorMsg = "Akses Ditolak: Anda tidak memiliki izin untuk menyimpan ke Firebase, atau hak akses akun Anda ditolak.";
       } else if (e.message) {
         errorMsg = `Gagal simpan: ${e.message}`;
       }
       
-      alert(errorMsg);
+      showToast(errorMsg, "error", `Code: ${e.code || 'N/A'}\nMessage: ${e.message}\nAkun Aktif: ${auth.currentUser?.email || 'Tidak ada'}\nUID: ${auth.currentUser?.uid || 'Tidak ada'}\nToken Claims:\n${tokenClaimsStr}`);
     } finally {
       setSaving(false);
     }
@@ -1896,9 +2056,9 @@ export default function AdminDashboard({ onExit }: { onExit?: () => void }) {
                             });
                             alert("Berasil memuat data standar. Halaman akan dimuat ulang.");
                             window.location.reload();
-                          } catch(e) {
+                          } catch(e: any) {
                             console.error(e);
-                            alert("Terjadi kesalahan saat memuat data.");
+                            alert(`Gagal memuat data standar.\nError: ${e.message}\nAkun Aktif: ${auth.currentUser?.email || 'N/A'}\nUID: ${auth.currentUser?.uid || 'N/A'}`);
                           }
                           setSaving(false);
                         }}
@@ -2415,6 +2575,92 @@ export default function AdminDashboard({ onExit }: { onExit?: () => void }) {
         </div>
       )}
     </div>
+  );
+}
+
+export default function AdminDashboard({ onExit }: { onExit?: () => void }) {
+  const [toasts, setToasts] = useState<Toast[]>([]);
+
+  useEffect(() => {
+    const handleToast = (e: any) => {
+      const { type, message, details, duration } = e.detail;
+      const id = Math.random().toString(36).substring(2, 9);
+      setToasts(prev => {
+        // Remove existing loading toast if we got a new success/error toast
+        if (type !== 'loading') {
+          return [...prev.filter(t => t.type !== 'loading'), { id, type, message, details }];
+        }
+        return [...prev, { id, type, message, details }];
+      });
+      
+      if (type !== 'loading' && duration !== 0) {
+        setTimeout(() => {
+          setToasts(prev => prev.filter(t => t.id !== id));
+        }, duration || 6000);
+      }
+    };
+    
+    const handleClearLoading = () => {
+      setToasts(prev => prev.filter(t => t.type !== 'loading'));
+    };
+
+    window.addEventListener('app-toast' as any, handleToast);
+    window.addEventListener('app-toast-clear-loading' as any, handleClearLoading);
+    return () => {
+      window.removeEventListener('app-toast' as any, handleToast);
+      window.removeEventListener('app-toast-clear-loading' as any, handleClearLoading);
+    };
+  }, []);
+
+  return (
+    <ErrorBoundary>
+      <AdminDashboardInner onExit={onExit} />
+      
+      {/* Toast Notification Container */}
+      <div className="fixed bottom-6 right-6 z-[9999] flex flex-col gap-3 min-w-[320px] max-w-[450px]">
+        {toasts.map((toast) => (
+          <div 
+            key={toast.id}
+            className={cn(
+              "p-4 rounded-2xl shadow-xl border flex gap-3 items-start animate-in slide-in-from-bottom duration-300",
+              toast.type === 'success' && "bg-emerald-50 text-emerald-900 border-emerald-200",
+              toast.type === 'error' && "bg-rose-50 text-rose-900 border-rose-200",
+              toast.type === 'loading' && "bg-blue-50 text-blue-900 border-blue-200",
+              toast.type === 'info' && "bg-slate-50 text-slate-900 border-slate-200"
+            )}
+          >
+            {toast.type === 'loading' ? (
+              <div className="w-5 h-5 border-2 border-blue-900/30 border-t-blue-900 rounded-full animate-spin shrink-0 mt-0.5"></div>
+            ) : (
+              <div className={cn(
+                "w-5 h-5 rounded-full flex items-center justify-center font-black text-xs shrink-0 mt-0.5",
+                toast.type === 'success' && "bg-emerald-200 text-emerald-800",
+                toast.type === 'error' && "bg-rose-200 text-rose-800",
+                toast.type === 'info' && "bg-slate-200 text-slate-800"
+              )}>
+                {toast.type === 'success' ? '✓' : toast.type === 'error' ? '!' : 'i'}
+              </div>
+            )}
+            
+            <div className="flex-1 space-y-1">
+              <p className="font-extrabold text-sm">{toast.message}</p>
+              {toast.details && (
+                <div className="bg-black/5 p-2 rounded-xl text-[10px] font-mono whitespace-pre-wrap overflow-auto max-h-24">
+                  {toast.details}
+                </div>
+              )}
+            </div>
+
+            <button 
+              onClick={() => setToasts(prev => prev.filter(t => t.id !== toast.id))}
+              className="text-slate-400 hover:text-slate-600 font-bold text-xs p-1"
+            >
+              ✕
+            </button>
+          </div>
+        ))}
+      </div>
+    </ErrorBoundary>
   );
 }
 

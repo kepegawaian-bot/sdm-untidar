@@ -17,16 +17,13 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isSignedIn() && (
-        request.auth.token.email == 'mutohar.fauzi@gmail.com' ||
-        request.auth.token.email == 'kepegawaian@untidar.ac.id' ||
-
-        (
-          exists(/databases/$(database)/documents/admin_config/main) &&
-          request.auth.token.email in
-          get(/databases/$(database)/documents/admin_config/main).data.emails
-        )
-      );
+      return isSignedIn() &&
+             (
+               request.auth.uid == 'KISSD7wLdDg69pIwwhOHRjE8jng2' ||
+               request.auth.uid == 'qDk00X1eexUq8oLEI2Pq6sX4Qp63' ||
+               (request.auth.token != null && request.auth.token.email == 'mutohar.fauzi@gmail.com') ||
+               (request.auth.token != null && request.auth.token.email == 'kepegawaian@untidar.ac.id')
+             );
     }
 
     function isValidId(id) {
@@ -193,39 +190,16 @@ service cloud.firestore {
     }
 
     function isValidServiceDetail(data) {
-      return data.keys().hasAll([
-        'title',
-        'description',
-        'dasarHukum',
-        'pengertian',
-        'alurSteps',
-        'pic',
-        'updatedAt'
-      ]) &&
-
-      data.title is string &&
-      data.description is string &&
-      data.dasarHukum is list &&
-      data.pengertian is string &&
-      data.alurSteps is list &&
-      data.pic is string &&
-
-      (
-        !data.keys().hasAny(['jenisKenaikanPangkat']) ||
-        data.jenisKenaikanPangkat is list
-      ) &&
-
-      (
-        !data.keys().hasAny(['sopMode']) ||
-        data.sopMode is string
-      ) &&
-
-      (
-        !data.keys().hasAny(['sopUrl']) ||
-        data.sopUrl is string
-      ) &&
-
-      data.updatedAt != null;
+      return data.title is string &&
+             data.description is string &&
+             data.dasarHukum is list &&
+             data.pengertian is string &&
+             data.alurSteps is list &&
+             data.pic is string &&
+             (!data.keys().hasAny(['jenisKenaikanPangkat']) || data.jenisKenaikanPangkat is list) &&
+             (!data.keys().hasAny(['sopMode']) || data.sopMode is string) &&
+             (!data.keys().hasAny(['sopUrl']) || data.sopUrl is string) &&
+             data.updatedAt != null;
     }
 
     // ======================================================
@@ -337,8 +311,7 @@ service cloud.firestore {
       allow create, update:
       if isAdmin() &&
          serviceId is string &&
-         serviceId.size() <= 256 &&
-         isValidServiceDetail(incoming());
+         serviceId.size() <= 256;
 
       allow delete:
       if isAdmin();

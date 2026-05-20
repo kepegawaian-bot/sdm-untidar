@@ -1485,7 +1485,7 @@ function LayananView({ content, onOpenSKM }: { content: any, onOpenSKM: () => vo
       return;
     }
 
-    const slug = item.title.toLowerCase().replace(/\s+/g, '-');
+    const slug = item.title.toLowerCase().replace(/[^a-z0-9_\-]+/g, '-').replace(/-+/g, '-').replace(/(^-|-$)/g, '');
     setLoadingDetail(true);
     try {
       const snap = await getDoc(doc(db, 'service_details', slug));
