@@ -657,6 +657,31 @@ function PanduanEditor({ services, settings }: { services: any[], settings: any 
 
                              setSaving(true);
                              setUploadProgress(0);
+
+                             // Jalur Instan Base64 untuk file <= 650KB (100% aman dari hambatan koneksi / ISP blocks / CORS)
+                             if (file.size <= 650 * 1024) {
+                               try {
+                                 console.log("Menggunakan Jalur Instan Base64 karena ukuran file kecil:", file.size);
+                                 const dataUrl = await new Promise<string>((resolve, reject) => {
+                                   const reader = new FileReader();
+                                   reader.onload = (event) => resolve(event.target?.result as string);
+                                   reader.onerror = (err) => reject(new Error("Gagal membaca file sebagai Base64"));
+                                   reader.readAsDataURL(file);
+                                 });
+                                 
+                                 setDetail(prev => ({...prev, sopUrl: dataUrl}));
+                                 alert("Berhasil! Dokumen diproses instan melalui Jalur Aman Base64 (bypass error jaringan storage). Silakan klik tombol 'SIMPAN PROGRESS' di bawah untuk menyimpan!");
+                               } catch (err: any) {
+                                 console.error("Base64 processing error:", err);
+                                 alert("Gagal memproses dokumen: " + err.message);
+                                } finally {
+                                 setSaving(false);
+                                 setUploadProgress(null);
+                                 if (e.target) e.target.value = '';
+                               }
+                               return;
+                             }
+
                              if (!storage) {
                                alert("Storage tidak terinisialisasi. Periksa Firebase Console Anda.");
                                setSaving(false);
@@ -694,19 +719,22 @@ function PanduanEditor({ services, settings }: { services: any[], settings: any 
                                  }),
                                  new Promise<string>((_, reject) => setTimeout(() => {
                                    uploadTask.cancel();
-                                   reject(new Error("Timeout (3 menit): Koneksi Anda/VPN mungkin memblokir akses ke server Firebase."));
-                                 }, 180000))
+                                   reject(new Error("Timeout (15 detik): Koneksi Firebase Storage di tempat Anda terindikasi diblokir atau stagnan di 0%."));
+                                 }, 15000))
                                ]);
                                
                                setDetail(prev => ({...prev, sopUrl: downloadUrl}));
                                alert("Berhasil mengunggah dokumen!");
                              } catch (error: any) {
                                console.error("Detailed upload error:", error);
-                               let msg = error.message;
-                               if (error.code === 'storage/canceled' || msg.includes('Timeout')) {
-                                  msg = "Koneksi terputus atau VPN memblokir akses. \n\nSolusi:\n1. Matikan VPN sementara.\n2. Gunakan Jaringan lain (WiFi/Hotspot).\n3. Gunakan Link URL Google Drive saja.";
-                               }
-                               alert("Gagal mengunggah: " + msg);
+                               alert(
+                                 `Gagal mengunggah file (${Math.round(file.size / 1024)} KB) karena koneksi terputus atau terhambat jaringan/firewall.\n\n` +
+                                 `ANALISIS KENDALA:\n` +
+                                 `Sistem mencoba menggunakan Firebase Storage karena ukuran file Anda melebihi 650 KB, namun koneksi internet Anda stagnan di 0% (kemungkinan diblokir oleh kebijakan filter ISP Indihome/Telkomsel atau pembatasan CORS Storage).\n\n` +
+                                 `SOLUSI INSTAN & MUDAH:\n` +
+                                 `1. Kompres PDF Anda di bawah 650 KB (disarankan di bawah 500 KB) dengan web gratis seperti 'PDF Compressor Online'. Setelah ukurannya kecil, unggahan akan SUKSES EKSPRES & INSTAN dalam 1 detik melalui jalur aman Base64!\n\n` +
+                                 `2. Atau, upload file PDF Anda ke Google Drive, atur hak akses Link ke "Siapa saja yang memiliki link", lalu salin link-nya dan tempel di kotak "Atau Gunakan Link URL" di sebelah kanan.`
+                               );
                              } finally {
                                setSaving(false);
                                setUploadProgress(null);
