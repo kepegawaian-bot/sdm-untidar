@@ -801,7 +801,7 @@ function PanduanEditor({ services, settings }: { services: any[], settings: any 
                     )}
                   </div>
                 )}
-                <p className="text-xs text-slate-500">File yang diunggah akan disimpan ke Firebase Storage. Batas maksimum per file adalah 10MB.</p>
+                <p className="text-xs text-slate-500">Batas maksimum per file adalah 700 Kb.</p>
              </div>
            ) : (
             <div className="space-y-3">
