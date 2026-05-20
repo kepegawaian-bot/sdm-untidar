@@ -360,7 +360,19 @@ function PanduanEditor({ services, settings }: { services: any[], settings: any 
         onClick={async () => {
           setSaving(true);
           try {
-            await setDoc(doc(db, 'service_details', selectedSlug), { ...detail, updatedAt: serverTimestamp() });
+            const cleanPayload = {
+              title: detail?.title || '',
+              description: detail?.description || '',
+              dasarHukum: detail?.dasarHukum || [],
+              pengertian: detail?.pengertian || '',
+              alurSteps: detail?.alurSteps || [],
+              pic: detail?.pic || '',
+              jenisKenaikanPangkat: detail?.jenisKenaikanPangkat || [],
+              sopMode: detail?.sopMode || 'file',
+              sopUrl: detail?.sopUrl || '',
+              updatedAt: serverTimestamp()
+            };
+            await setDoc(doc(db, 'service_details', selectedSlug), cleanPayload);
             alert('Detail Panduan Layanan Berhasil Disimpan!');
           } catch(e: any) { 
             console.error("Gagal menyimpan:", e);
@@ -876,13 +888,25 @@ function PanduanEditor({ services, settings }: { services: any[], settings: any 
              onClick={async () => {
                setSaving(true);
                try {
-                 await setDoc(doc(db, 'service_details', selectedSlug), { ...detail, updatedAt: serverTimestamp() });
+                 const cleanPayload = {
+                   title: detail?.title || '',
+                   description: detail?.description || '',
+                   dasarHukum: detail?.dasarHukum || [],
+                   pengertian: detail?.pengertian || '',
+                   alurSteps: detail?.alurSteps || [],
+                   pic: detail?.pic || '',
+                   jenisKenaikanPangkat: detail?.jenisKenaikanPangkat || [],
+                   sopMode: detail?.sopMode || 'file',
+                   sopUrl: detail?.sopUrl || '',
+                   updatedAt: serverTimestamp()
+                 };
+                 await setDoc(doc(db, 'service_details', selectedSlug), cleanPayload);
                  alert('Detail Panduan Layanan Berhasil Disimpan!');
                } catch(e: any) { 
                  console.error("Gagal menyimpan:", e);
                  let msg = e.message;
-                 if (msg.includes("permission-denied")) {
-                    msg = "Hak akses ditolak. Anda tidak memiliki izin untuk menyimpan perubahan ini.";
+                 if (msg.includes("permission-denied") || msg.includes("Missing or insufficient permissions")) {
+                    msg = "Hak akses ditolak. Anda tidak memiliki izin untuk menyimpan perubahan ini atau format data tidak lengkap.";
                  }
                  alert(`Gagal menyimpan data. Error: ${msg}`);
                } finally {
