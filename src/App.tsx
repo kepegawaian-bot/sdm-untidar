@@ -1896,19 +1896,20 @@ function ProfilView({ content }: { content: any }) {
             </motion.div>
             
             <motion.div 
-              initial={{ opacity: 0, scale: 0.9 }}
-              whileInView={{ opacity: 1, scale: 1 }}
-              viewport={{ once: true }}
-              className="relative aspect-square rounded-[4rem] overflow-hidden shadow-2xl border-[12px] border-white group"
+               initial={{ opacity: 0, scale: 0.9 }}
+               whileInView={{ opacity: 1, scale: 1 }}
+               viewport={{ once: true }}
+               className="relative aspect-square rounded-[4rem] overflow-hidden shadow-2xl border-[12px] border-white group"
             >
                 <div className="absolute inset-0 bg-amber-500/10 mix-blend-overlay group-hover:bg-black/20 transition-all duration-1000" />
                 <img 
-                  src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?q=80&w=2070&auto=format&fit=crop" 
+                  src={profile.teamImageUrl || "https://images.unsplash.com/photo-1522071820081-009f0129c71c?q=80&w=2070&auto=format&fit=crop"} 
                   alt="Team Collaboration" 
                   className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-1000 scale-110 group-hover:scale-100" 
+                  referrerPolicy="no-referrer"
                 />
                 <div className="absolute inset-x-0 bottom-0 p-12 bg-gradient-to-t from-black/80 to-transparent flex flex-col justify-end">
-                    <h4 className="text-white font-black text-3xl tracking-tighter italic leading-tight">"Profesional, Melayani, Bermartabat."</h4>
+                    <h4 className="text-white font-black text-3xl tracking-tighter italic leading-tight">"{profile.teamQuote || "Profesional, Melayani, Bermartabat."}"</h4>
                 </div>
             </motion.div>
         </div>

@@ -658,8 +658,8 @@ function PanduanEditor({ services, settings }: { services: any[], settings: any 
                              setSaving(true);
                              setUploadProgress(0);
 
-                             // Jalur Instan Base64 untuk file <= 650KB (100% aman dari hambatan koneksi / ISP blocks / CORS)
-                             if (file.size <= 650 * 1024) {
+                             // Jalur Instan Base64 untuk file <= 700KB (100% aman dari hambatan koneksi / ISP blocks / CORS)
+                             if (file.size <= 700 * 1024) {
                                try {
                                  console.log("Menggunakan Jalur Instan Base64 karena ukuran file kecil:", file.size);
                                  const dataUrl = await new Promise<string>((resolve, reject) => {
@@ -730,9 +730,9 @@ function PanduanEditor({ services, settings }: { services: any[], settings: any 
                                alert(
                                  `Gagal mengunggah file (${Math.round(file.size / 1024)} KB) karena koneksi terputus atau terhambat jaringan/firewall.\n\n` +
                                  `ANALISIS KENDALA:\n` +
-                                 `Sistem mencoba menggunakan Firebase Storage karena ukuran file Anda melebihi 650 KB, namun koneksi internet Anda stagnan di 0% (kemungkinan diblokir oleh kebijakan filter ISP Indihome/Telkomsel atau pembatasan CORS Storage).\n\n` +
+                                 `Sistem mencoba menggunakan Firebase Storage karena ukuran file Anda melebihi 700 KB, namun koneksi internet Anda stagnan di 0% (kemungkinan diblokir oleh kebijakan filter ISP Indihome/Telkomsel atau pembatasan CORS Storage).\n\n` +
                                  `SOLUSI INSTAN & MUDAH:\n` +
-                                 `1. Kompres PDF Anda di bawah 650 KB (disarankan di bawah 500 KB) dengan web gratis seperti 'PDF Compressor Online'. Setelah ukurannya kecil, unggahan akan SUKSES EKSPRES & INSTAN dalam 1 detik melalui jalur aman Base64!\n\n` +
+                                 `1. Kompres PDF Anda di bawah 700 KB (disarankan di bawah 500 KB) dengan web gratis seperti 'PDF Compressor Online'. Setelah ukurannya kecil, unggahan akan SUKSES EKSPRES & INSTAN dalam 1 detik melalui jalur aman Base64!\n\n` +
                                  `2. Atau, upload file PDF Anda ke Google Drive, atur hak akses Link ke "Siapa saja yang memiliki link", lalu salin link-nya dan tempel di kotak "Atau Gunakan Link URL" di sebelah kanan.`
                                );
                              } finally {
@@ -1585,6 +1585,46 @@ export default function AdminDashboard({ onExit }: { onExit?: () => void }) {
                    <div>
                       <label className="block text-xs font-semibold text-slate-500 mb-1">Deskripsi</label>
                       <textarea value={settings.profile?.description} onChange={(e) => updateSettingNode('profile', 'description', e.target.value)} className="w-full border rounded px-3 py-2 text-sm h-24" />
+                   </div>
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-slate-50 rounded-xl border border-slate-200/60 mb-2">
+                     <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">Slogan / Motto Tim Kerja</label>
+                        <input 
+                          type="text" 
+                          placeholder="Motto tim (Contoh: Profesional, Melayani, Bermartabat.)" 
+                          value={settings.profile?.teamQuote || ""} 
+                          onChange={(e) => updateSettingNode('profile', 'teamQuote', e.target.value)} 
+                          className="w-full border border-slate-300 rounded px-3 py-2 text-sm bg-white font-sans text-slate-900" 
+                        />
+                     </div>
+                     <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">Foto Ilustrasi Tim (Bagian Samping Deskripsi)</label>
+                        <div className="flex gap-2 items-center border border-slate-300 rounded px-2 bg-white p-1.5">
+                            <label className="text-xs font-bold text-blue-700 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded cursor-pointer hover:bg-blue-100 truncate flex-1 text-center font-sans">
+                                {settings.profile?.teamImageUrl ? "Ganti Foto Pendukung" : "Upload Foto Pendukung"}
+                                <input type="file" accept="image/*" onChange={async (e) => {
+                                   const file = e.target.files?.[0];
+                                   if (!file) return;
+                                   setSaving(true);
+                                   try {
+                                       const dataUrl = await compressImageAsDataUrl(file, 1000, 1000); 
+                                       updateSettingNode('profile', 'teamImageUrl', dataUrl);
+                                       alert("Foto tim berhasil dipasang! Ingat untuk klik tombol 'SIMPAN PERUBAHAN' di bawah/atas agar permanen.");
+                                   } catch (error: any) {
+                                       console.error(error);
+                                       alert("Gagal memproses gambar: " + error.message);
+                                   } finally {
+                                       setSaving(false);
+                                   }
+                                }} className="hidden" />
+                            </label>
+                            {settings.profile?.teamImageUrl && (
+                                <button onClick={() => updateSettingNode('profile', 'teamImageUrl', '')} className="text-red-500 hover:text-red-700 p-1" title="Hapus Gambar">
+                                    <Trash className="w-4 h-4"/>
+                                </button>
+                            )}
+                        </div>
+                     </div>
                    </div>
                    <div>
                       <label className="block text-xs font-semibold text-slate-500 mb-1">Struktur Organisasi (Upload Gambar)</label>
