@@ -232,6 +232,7 @@ function PanduanEditor({ services, settings }: { services: any[], settings: any 
               description: '',
               dasarHukum: [],
               pengertian: '',
+              informasiDetail: [],
               jenisKenaikanPangkat: [],
               alurSteps: [],
               pic: ''
@@ -461,6 +462,7 @@ function PanduanEditor({ services, settings }: { services: any[], settings: any 
               description: detail?.description || '',
               dasarHukum: detail?.dasarHukum || [],
               pengertian: detail?.pengertian || '',
+              informasiDetail: detail?.informasiDetail || [],
               alurSteps: detail?.alurSteps || [],
               pic: detail?.pic || '',
               jenisKenaikanPangkat: detail?.jenisKenaikanPangkat || [],
@@ -594,6 +596,55 @@ function PanduanEditor({ services, settings }: { services: any[], settings: any 
              className="w-full bg-slate-50 border-slate-100 rounded-[2rem] p-6 text-sm font-medium leading-relaxed min-h-[150px] focus:bg-white focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all" 
              placeholder="Jelaskan definisi atau pengertian dari layanan ini..." 
            />
+        </section>
+
+        <section className="space-y-4">
+           <div className="flex items-center justify-between">
+             <h3 className="font-black text-slate-800 uppercase tracking-wider text-xs flex items-center gap-2">
+                <FileText className="w-4 h-4 text-slate-400" /> Informasi Detail
+             </h3>
+           </div>
+           <div className="space-y-3">
+             {(Array.isArray(detail.informasiDetail) ? detail.informasiDetail : (detail.informasiDetail ? [String(detail.informasiDetail)] : [])).map((info: string, i: number) => (
+               <div key={i} className="flex gap-2 group animate-in slide-in-from-left-2">
+                 <textarea 
+                   placeholder="Tuliskan poin informasi detail mengenai layanan ini..."
+                   value={info} 
+                   onChange={e => {
+                     const currentList = Array.isArray(detail.informasiDetail) ? detail.informasiDetail : (detail.informasiDetail ? [String(detail.informasiDetail)] : []);
+                     const copy = [...currentList];
+                     copy[i] = e.target.value;
+                     setDetail({...detail, informasiDetail: copy});
+                   }} 
+                   className="flex-1 bg-slate-50 border-slate-100 rounded-2xl px-5 py-3 text-sm focus:bg-white focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all min-h-[80px]" 
+                 />
+                 <button 
+                   type="button"
+                   onClick={(e) => {
+                     e.stopPropagation();
+                     if(window.confirm('Yakin ingin menghapus poin informasi ini?')) {
+                        setDetail(prev => {
+                          const currentList = Array.isArray(prev.informasiDetail) ? prev.informasiDetail : (prev.informasiDetail ? [String(prev.informasiDetail)] : []);
+                          return { ...prev, informasiDetail: currentList.filter((_:any, idx: number) => idx !== i) };
+                        });
+                     }
+                   }}
+                   className="p-3 text-slate-300 hover:text-red-500 transition-colors"
+                 >
+                   <Trash className="w-4 h-4 text-red-400"/>
+                 </button>
+               </div>
+             ))}
+             <button 
+               onClick={() => {
+                 const currentList = Array.isArray(detail.informasiDetail) ? detail.informasiDetail : (detail.informasiDetail ? [String(detail.informasiDetail)] : []);
+                 setDetail({...detail, informasiDetail: [...currentList, '']});
+               }} 
+               className="flex items-center gap-2 text-xs text-blue-600 font-black px-4 py-2 rounded-xl bg-blue-50 hover:bg-blue-100 transition-colors"
+             >
+               <Plus className="w-3 h-3" /> Tambah Poin Informasi Detail
+             </button>
+           </div>
         </section>
 
         <section className="space-y-6">
@@ -1019,6 +1070,7 @@ function PanduanEditor({ services, settings }: { services: any[], settings: any 
                    description: detail?.description || '',
                    dasarHukum: detail?.dasarHukum || [],
                    pengertian: detail?.pengertian || '',
+                   informasiDetail: detail?.informasiDetail || [],
                    alurSteps: detail?.alurSteps || [],
                    pic: detail?.pic || '',
                    jenisKenaikanPangkat: detail?.jenisKenaikanPangkat || [],

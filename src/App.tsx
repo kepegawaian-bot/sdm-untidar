@@ -1202,7 +1202,7 @@ function SKMSurveyModal({ onClose, settings, services }: { onClose: () => void, 
 
 // --- Service Detail Modal ---
 function ServiceDetailModal({ service, onClose, theme }: { service: any, onClose: () => void, theme: any }) {
-  const [activeTab, setActiveTab] = useState<'info' | 'syarat' | 'alur' | 'draft'>('info');
+  const [activeTab, setActiveTab] = useState<'info' | 'detail' | 'syarat' | 'alur' | 'draft'>('info');
 
   return (
     <motion.div 
@@ -1241,6 +1241,7 @@ function ServiceDetailModal({ service, onClose, theme }: { service: any, onClose
         <div className="flex border-b border-slate-100 px-6 bg-slate-50/50 overflow-x-auto no-scrollbar shrink-0">
           {[
             { id: 'info', label: 'Informasi Umum', icon: Info },
+            { id: 'detail', label: 'Informasi Detail', icon: BookOpen },
             { id: 'syarat', label: 'Syarat & Dokumen', icon: FileSignature },
             { id: 'alur', label: 'Alur & SOP', icon: Settings },
             ...(service.drafts?.length > 0 ? [{ id: 'draft', label: 'Format & Draft', icon: DownloadCloud }] : []),
@@ -1294,6 +1295,39 @@ function ServiceDetailModal({ service, onClose, theme }: { service: any, onClose
                     </h3>
                     <div className="bg-slate-50 p-6 rounded-[2rem] border border-slate-100 text-slate-700 leading-relaxed font-medium italic">
                       "{service.pengertian}"
+                    </div>
+                  </section>
+                </motion.div>
+              )}
+
+              {activeTab === 'detail' && (
+                <motion.div 
+                  initial={{ opacity: 0, x: 10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -10 }}
+                  key="detail"
+                  className="space-y-8"
+                >
+                  <section>
+                    <h3 className="flex items-center gap-2 text-sm font-black text-slate-400 uppercase tracking-widest mb-4">
+                      <BookOpen className={cn("w-4 h-4", theme.text)} />
+                      Informasi Detail
+                    </h3>
+                    <div className="bg-slate-50 p-6 rounded-[2rem] border border-slate-100 text-slate-700 leading-relaxed font-medium">
+                      {(service.informasiDetail && Array.isArray(service.informasiDetail) && service.informasiDetail.length > 0) ? (
+                        <ul className="space-y-3 list-none">
+                          {service.informasiDetail.map((info: string, i: number) => (
+                            <li key={i} className="flex gap-3">
+                               <CheckCircle2 className={cn("w-5 h-5 shrink-0 mt-0.5", theme.text)} />
+                               <span className="whitespace-pre-wrap">{info}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (typeof service.informasiDetail === 'string' && service.informasiDetail.trim().length > 0) ? (
+                        <div className="whitespace-pre-wrap">{service.informasiDetail}</div>
+                      ) : (
+                        "Tidak ada informasi detail."
+                      )}
                     </div>
                   </section>
                 </motion.div>
