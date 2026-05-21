@@ -1282,7 +1282,7 @@ function ServiceDetailModal({ service, onClose, theme }: { service: any, onClose
                     <ul className="space-y-3">
                       {service.dasarHukum?.map((item, i) => (
                         <li key={i} className="flex gap-3 text-slate-600 leading-relaxed group">
-                           <div className={cn("w-1.5 h-1.5 rounded-full mt-2.5 transition-all group-hover:scale-150", theme.bg)} />
+                           <div className={cn("w-1.5 h-1.5 rounded-full mt-2.5 shrink-0 transition-all group-hover:scale-150", theme.bg)} />
                            {item}
                         </li>
                       ))}
@@ -1355,7 +1355,7 @@ function ServiceDetailModal({ service, onClose, theme }: { service: any, onClose
                               <ul className="space-y-3">
                                 {jenis.ketentuan.map((k, j) => (
                                   <li key={j} className="flex gap-3 text-slate-600 text-sm font-medium leading-relaxed">
-                                    <CheckCircle2 className={cn("w-4 h-4 mt-0.5", theme.text)} />
+                                    <CheckCircle2 className={cn("w-5 h-5 shrink-0 mt-0.5", theme.text)} />
                                     {k}
                                   </li>
                                 ))}
