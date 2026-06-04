@@ -45,7 +45,13 @@ import {
   Lock,
   Activity,
   TrendingUp,
-  Image as LucideImage
+  Image as LucideImage,
+  Upload,
+  Trash,
+  Eye,
+  Paperclip,
+  Check,
+  CheckSquare
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import Markdown from 'react-markdown';
@@ -1203,20 +1209,74 @@ function SKMSurveyModal({ onClose, settings, services }: { onClose: () => void, 
 // --- Service Detail Modal ---
 function ServiceDetailModal({ service, onClose, theme }: { service: any, onClose: () => void, theme: any }) {
   const [activeTab, setActiveTab] = useState<'info' | 'detail' | 'syarat' | 'alur' | 'draft'>('info');
+  const [uploadedFiles, setUploadedFiles] = useState<{ [key: string]: { name: string; size: string; dataUrl: string; fileType: string } }>({});
+  const [previewingFile, setPreviewingFile] = useState<{ name: string; size: string; dataUrl: string; fileType: string } | null>(null);
+  const [dragActive, setDragActive] = useState<{ [key: string]: boolean }>({});
+  const [showSubmitSuccess, setShowSubmitSuccess] = useState(false);
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement> | React.DragEvent, fileKey: string, droppedFile?: File) => {
+    let file = droppedFile;
+    if (!file && e.target) {
+      const input = e.target as HTMLInputElement;
+      file = input.files?.[0];
+    }
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setUploadedFiles(prev => ({
+        ...prev,
+        [fileKey]: {
+          name: file.name,
+          size: (file.size / (1024 * 1024)).toFixed(2) + ' MB',
+          dataUrl: reader.result as string,
+          fileType: file.type
+        }
+      }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleDrag = (e: React.DragEvent, fileKey: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(prev => ({ ...prev, [fileKey]: true }));
+    } else if (e.type === "dragleave") {
+      setDragActive(prev => ({ ...prev, [fileKey]: false }));
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent, fileKey: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(prev => ({ ...prev, [fileKey]: false }));
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleFileUpload(e, fileKey, e.dataTransfer.files[0]);
+    }
+  };
+
+  const handleRemoveFile = (fileKey: string) => {
+    setUploadedFiles(prev => {
+      const copy = { ...prev };
+      delete copy[fileKey];
+      return copy;
+    });
+  };
 
   return (
     <motion.div 
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
+      className="fixed inset-0 z-[100] flex items-center justify-center md:p-4 bg-slate-900/60 backdrop-blur-sm"
       onClick={onClose}
     >
       <motion.div 
         initial={{ scale: 0.9, y: 20, opacity: 0 }}
         animate={{ scale: 1, y: 0, opacity: 1 }}
         exit={{ scale: 0.9, y: 20, opacity: 0 }}
-        className="bg-white w-full max-w-4xl max-h-[90vh] rounded-[3rem] shadow-2xl overflow-hidden flex flex-col"
+        className="bg-white w-full h-[100dvh] md:h-[90vh] md:w-[95vw] md:max-w-6xl md:rounded-[3rem] shadow-2xl overflow-hidden flex flex-col relative"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
@@ -1233,7 +1293,7 @@ function ServiceDetailModal({ service, onClose, theme }: { service: any, onClose
                 Panduan Layanan
               </div>
               <h2 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tighter leading-none mb-4">{service.title}</h2>
-              <p className="text-slate-600 font-medium max-w-2xl">{service.description}</p>
+              <p className="text-slate-600 font-medium">{service.description}</p>
            </div>
         </div>
 
@@ -1339,43 +1399,173 @@ function ServiceDetailModal({ service, onClose, theme }: { service: any, onClose
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -10 }}
                   key="syarat"
-                  className="space-y-10"
+                  className="space-y-12"
                 >
-                   {service.jenisKenaikanPangkat?.map((jenis, i) => (
-                     <div key={i} className="rounded-[2.5rem] border border-slate-100 overflow-hidden bg-slate-50/30">
-                        <div className={cn("px-8 py-5 border-b border-white", theme.light)}>
-                          <h4 className="font-black text-slate-800 text-lg">{jenis.title}</h4>
-                          <p className="text-sm text-slate-500 font-medium">{jenis.description}</p>
-                        </div>
-                        <div className="p-8 grid md:grid-cols-2 gap-8">
-                           <div className="space-y-4">
-                              <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                                <Info className="w-3 h-3" /> Ketentuan
-                              </h5>
-                              <ul className="space-y-3">
-                                {jenis.ketentuan.map((k, j) => (
-                                  <li key={j} className="flex gap-3 text-slate-600 text-sm font-medium leading-relaxed">
-                                    <CheckCircle2 className={cn("w-5 h-5 shrink-0 mt-0.5", theme.text)} />
-                                    {k}
-                                  </li>
-                                ))}
-                              </ul>
-                           </div>
-                           <div className="space-y-4">
-                              <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                                <FileText className="w-3 h-3" /> Kelengkapan Dokumen
-                              </h5>
-                              <div className="flex flex-wrap gap-2">
-                                {jenis.dokumen.map((d, j) => (
-                                  <span key={j} className="px-3 py-2 bg-white border border-slate-100 rounded-xl text-xs font-bold text-slate-700 shadow-sm">
-                                    {d}
-                                  </span>
-                                ))}
+                   {service.jenisKenaikanPangkat?.map((jenis, i) => {
+                     const totalDocs = jenis.dokumen?.length || 0;
+                     const uploadedCount = jenis.dokumen?.filter((_, docIdx: number) => uploadedFiles[`${i}-${docIdx}`] !== undefined).length || 0;
+                     const isAllUploaded = totalDocs > 0 && uploadedCount === totalDocs;
+                     const progressPercent = totalDocs > 0 ? Math.round((uploadedCount / totalDocs) * 100) : 0;
+
+                     return (
+                       <div key={i} className="space-y-8 animate-in fade-in duration-300">
+                          {/* Banner Section */}
+                          <div className={cn("p-8 rounded-[2.5rem] border border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 relative overflow-hidden", theme.light)}>
+                            <div className="z-10">
+                              <span className="text-[10px] font-black uppercase tracking-widest bg-white/60 px-3 py-1 rounded-full text-slate-600 border border-slate-200/50">Kategori Persyaratan</span>
+                              <h4 className="font-black text-slate-800 text-2xl mt-3 tracking-tight">{jenis.title}</h4>
+                              <p className="text-sm text-slate-500 font-medium mt-1 leading-relaxed">{jenis.description}</p>
+                            </div>
+                            {isAllUploaded && (
+                              <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 px-4 py-2 rounded-2xl text-xs font-black shrink-0 relative z-10 uppercase tracking-wider animate-bounce">
+                                <Check className="w-4 h-4 stroke-[3]" /> Berkas Lengkap
                               </div>
-                           </div>
-                        </div>
-                     </div>
-                   ))}
+                            )}
+                          </div>
+
+                          {/* 1. Ketentuan Model (Single full-width column layout like Informasi Detail) */}
+                          <section className="space-y-4">
+                             <h5 className="text-[11px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 px-1">
+                               <Info className="w-4 h-4" /> Ketentuan & Persyaratan Umum
+                             </h5>
+                             <div className="bg-slate-50 p-6 sm:p-8 rounded-[2.5rem] border border-slate-100 text-slate-700 leading-relaxed font-medium">
+                                {jenis.ketentuan && jenis.ketentuan.length > 0 ? (
+                                  <ul className="space-y-4 list-none">
+                                    {jenis.ketentuan.map((k, j) => (
+                                      <li key={j} className="flex gap-4">
+                                         <CheckCircle2 className={cn("w-5 h-5 shrink-0 mt-0.5", theme.text)} />
+                                         <span className="text-sm text-slate-600 font-medium leading-relaxed">{k}</span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                ) : (
+                                  <p className="text-sm text-slate-400 italic">Tidak ada ketentuan khusus.</p>
+                                )}
+                             </div>
+                          </section>
+
+                          {/* 2. Kelengkapan Dokumen & Upload (Interactive cards matching spacing of Informasi Detail) */}
+                          <section className="space-y-4">
+                             <h5 className="text-[11px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 px-1">
+                               <FileText className="w-4 h-4" /> Kelengkapan Dokumen & Unggah Digital
+                             </h5>
+                             <div className="space-y-3">
+                                {jenis.dokumen && jenis.dokumen.length > 0 ? (
+                                  jenis.dokumen.map((docName: string, docIdx: number) => {
+                                    const fileKey = `${i}-${docIdx}`;
+                                    const file = uploadedFiles[fileKey];
+
+                                    return (
+                                      <div 
+                                        key={docIdx} 
+                                        className={cn(
+                                          "border rounded-3xl p-5 sm:p-6 transition-all flex flex-col md:flex-row md:items-center justify-between gap-4",
+                                          file 
+                                            ? "bg-emerald-500/[0.02] border-emerald-500/20 hover:border-emerald-500/30" 
+                                            : "bg-white border-slate-100 hover:border-slate-200 hover:shadow-md hover:shadow-slate-100"
+                                        )}
+                                      >
+                                         <div className="flex items-start gap-4">
+                                            <div className={cn(
+                                              "w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-sm transition-colors",
+                                              file ? "bg-emerald-500/10 text-emerald-600" : "bg-slate-50 text-slate-400"
+                                            )}>
+                                               {file ? <Check className="w-5 h-5 stroke-[3]" /> : <Paperclip className="w-5 h-5" />}
+                                            </div>
+                                            <div className="space-y-1 bg-transparent p-0 rounded-none">
+                                               <h6 className="font-bold text-slate-800 text-sm leading-snug">{docName}</h6>
+                                               <p className="text-xs text-slate-400 font-medium">Format: PDF/Gambar hasil scan asli (Maks. 5MB)</p>
+                                            </div>
+                                         </div>
+
+                                         <div className="flex items-center gap-3 self-end md:self-auto shrink-0 relative z-10">
+                                            {file ? (
+                                               <div className="flex items-center gap-2 bg-white/80 p-1.5 rounded-xl border border-slate-100 shadow-sm animate-in zoom-in-95 duration-150">
+                                                  <div className="px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-700 text-[10px] font-black uppercase tracking-widest flex items-center gap-1">
+                                                     <Check className="w-3 h-3 stroke-[3]" /> Terunggah
+                                                  </div>
+                                                  <div className="max-w-[120px] sm:max-w-[180px] truncate text-xs text-slate-600 font-bold pl-1">
+                                                     {file.name}
+                                                  </div>
+                                                  <span className="text-[10px] text-slate-400 font-mono font-bold">
+                                                     {file.size}
+                                                  </span>
+
+                                                  <div className="h-4 w-[1px] bg-slate-200 mx-1" />
+
+                                                  <button 
+                                                    onClick={() => setPreviewingFile(file)}
+                                                    className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-blue-600 transition-colors"
+                                                    title="Pratinjau File"
+                                                  >
+                                                     <Eye className="w-4 h-4" />
+                                                  </button>
+                                                  <button 
+                                                    onClick={() => handleRemoveFile(fileKey)}
+                                                    className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-red-500 transition-colors"
+                                                    title="Hapus File"
+                                                  >
+                                                     <Trash className="w-4 h-4" />
+                                                  </button>
+                                               </div>
+                                            ) : (
+                                               <button 
+                                                 onClick={() => document.getElementById(`file-input-${fileKey}`)?.click()}
+                                                 className="flex items-center gap-2 px-5 py-2.5 bg-slate-50 border border-slate-200 hover:border-blue-500 hover:bg-blue-50/50 rounded-2xl text-xs font-black text-slate-600 hover:text-blue-600 transition-all cursor-pointer shadow-sm group"
+                                               >
+                                                  <Upload className="w-3.5 h-3.5 transform group-hover:-translate-y-0.5 transition-transform" />
+                                                  <span>UNGGAH BERKAS</span>
+                                                  <input 
+                                                    id={`file-input-${fileKey}`}
+                                                    type="file" 
+                                                    accept=".pdf,image/*" 
+                                                    className="hidden" 
+                                                    onChange={(e) => handleFileUpload(e, fileKey)}
+                                                  />
+                                               </button>
+                                            )}
+                                         </div>
+                                      </div>
+                                    );
+                                  })
+                                ) : (
+                                  <p className="text-sm text-slate-400 italic">Tidak ada kelengkapan khusus.</p>
+                                )}
+                             </div>
+                          </section>
+
+                          {/* Dynamic Completion Banner */}
+                          <div className="bg-slate-50 rounded-3xl p-6 border border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4 mt-8">
+                             <div className="flex-1 w-full">
+                                <div className="flex justify-between items-center mb-2">
+                                   <span className="text-xs font-black text-slate-500 uppercase tracking-wider">Metrik Status Berkas</span>
+                                   <span className={cn("text-xs font-black", theme.text)}>{uploadedCount} dari {totalDocs} Dokumen Terpenuhi ({progressPercent}%)</span>
+                                </div>
+                                <div className="w-full h-2.5 bg-slate-200/60 rounded-full overflow-hidden">
+                                   <motion.div 
+                                     className={cn("h-full rounded-full", theme.bg)} 
+                                     initial={{ width: 0 }}
+                                     animate={{ width: `${progressPercent}%` }}
+                                     transition={{ duration: 0.5, ease: "easeOut" }}
+                                   />
+                                </div>
+                             </div>
+                             {isAllUploaded ? (
+                                <button 
+                                  onClick={() => setShowSubmitSuccess(true)}
+                                  className={cn("w-full sm:w-auto px-6 py-3 rounded-2xl text-white font-black text-xs uppercase tracking-wider shadow-lg flex items-center justify-center gap-2", theme.bg, "hover:opacity-95 transition-all shadow-blue-500/10 hover:shadow-xl")}
+                                >
+                                  <CheckSquare className="w-4 h-4" /> Ajukan Dokumen
+                                </button>
+                             ) : (
+                                <div className="w-full sm:w-auto px-5 py-3 rounded-2xl bg-slate-100 text-slate-400 font-bold text-xs text-center border border-slate-200/50 shrink-0">
+                                  Harap lengkapi seluruh dokumen di atas
+                                </div>
+                             )}
+                          </div>
+                       </div>
+                     );
+                   })}
                 </motion.div>
               )}
 
@@ -1401,19 +1591,19 @@ function ServiceDetailModal({ service, onClose, theme }: { service: any, onClose
                       </div>
                     ) : (
                       <>
-                        <div className="absolute left-[27px] top-4 bottom-4 w-1 bg-slate-100 rounded-full" />
-                        <div className="space-y-8">
-                          {service.alurSteps?.map((step: any, i: number) => (
-                            <div key={i} className="flex gap-6 relative group">
+                        <div className="absolute left-[27px] top-8 bottom-8 w-1 bg-slate-100 rounded-full hidden md:block" />
+                        <div className="space-y-6">
+                           {service.alurSteps?.map((step: any, i: number) => (
+                            <div key={i} className="flex flex-col md:flex-row gap-4 md:gap-6 relative group cursor-default">
                               <div className={cn(
-                                "w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-black shadow-lg relative z-10 transition-transform group-hover:scale-110",
+                                "w-14 h-14 shrink-0 rounded-2xl flex items-center justify-center text-xl font-black shadow-lg relative z-10 transition-transform md:group-hover:scale-110",
                                 theme.active, "text-white"
                               )}>
                                 {i+1}
                               </div>
-                              <div className="pt-2">
-                                <h4 className="text-xl font-black text-slate-800 tracking-tight">{step.title}</h4>
-                                <p className="text-slate-500 font-medium max-w-xl mt-1 leading-relaxed">{step.description}</p>
+                              <div className="pt-0 md:pt-2 flex-1 bg-slate-50 md:bg-transparent p-5 md:p-0 rounded-2xl md:rounded-none group-hover:bg-slate-50 md:group-hover:bg-transparent transition-colors">
+                                <h4 className="text-xl font-black text-slate-850 tracking-tight group-hover:text-blue-600 transition-colors">{step.title}</h4>
+                                <p className="text-slate-600 font-medium mt-2 md:mt-1 leading-relaxed">{step.description}</p>
                               </div>
                             </div>
                           ))}
@@ -1474,6 +1664,80 @@ function ServiceDetailModal({ service, onClose, theme }: { service: any, onClose
               )}
            </AnimatePresence>
         </div>
+
+        {/* Preview File Modal Overlay */}
+        {previewingFile && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md animate-in fade-in duration-200">
+            <div className="bg-white w-full max-w-4xl h-[85vh] rounded-3xl overflow-hidden shadow-2xl flex flex-col" onClick={e => e.stopPropagation()}>
+              <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                <div>
+                  <h3 className="font-black text-slate-800 text-base flex items-center gap-2">
+                    <FileText className={cn("w-5 h-5", theme.text)} /> Pratinjau: {previewingFile.name}
+                  </h3>
+                  <p className="text-xs text-slate-400 font-mono mt-0.5">{previewingFile.size} • {previewingFile.fileType}</p>
+                </div>
+                <button 
+                  onClick={() => setPreviewingFile(null)}
+                  className="p-2 hover:bg-slate-200 rounded-full text-slate-600 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="flex-1 bg-slate-100 p-8 flex items-center justify-center overflow-auto">
+                {previewingFile.fileType.startsWith('image/') ? (
+                   <img 
+                    src={previewingFile.dataUrl} 
+                    alt={previewingFile.name} 
+                    referrerPolicy="no-referrer"
+                    className="max-h-full max-w-full rounded-xl object-contain shadow-lg"
+                  />
+                ) : (
+                  <iframe 
+                    src={previewingFile.dataUrl} 
+                    title={previewingFile.name} 
+                    className="w-full h-full rounded-xl border border-slate-200 shadow-sm bg-white"
+                  />
+                )}
+              </div>
+              <div className="p-5 border-t border-slate-100 flex justify-end gap-3 bg-slate-50">
+                <a 
+                  href={previewingFile.dataUrl} 
+                  download={previewingFile.name}
+                  className="px-5 py-2.5 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-bold text-xs flex items-center gap-2 shadow-sm transition-all"
+                >
+                  <DownloadCloud className="w-4 h-4" /> Download File
+                </a>
+                <button 
+                  onClick={() => setPreviewingFile(null)}
+                  className="px-5 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl font-bold text-xs shadow-sm transition-all"
+                >
+                  Tutup
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Submit Success Dialog Overlay */}
+        {showSubmitSuccess && (
+          <div className="fixed inset-0 z-[115] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md animate-in fade-in duration-300" onClick={e => e.stopPropagation()}>
+            <div className="bg-white w-full max-w-md rounded-[3rem] p-8 md:p-10 text-center shadow-2xl">
+              <div className={cn("w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 text-white shadow-xl shadow-emerald-500/10", theme.bg)}>
+                <CheckCircle2 className="w-10 h-10" />
+              </div>
+              <h3 className="text-2xl font-black text-slate-900 mb-2 tracking-tighter">Pengajuan Berhasil Dikirim</h3>
+              <p className="text-sm text-slate-500 font-medium leading-relaxed mb-6">
+                Seluruh dokumen penunjang digital Anda telah berhasil dienkripsi dan diunggah ke portal server kepegawaian Universitas Tidar. Tim Kepegawaian (Helpdesk) akan memverifikasi kelengkapan usulan Anda.
+              </p>
+              <button 
+                onClick={() => setShowSubmitSuccess(false)}
+                className="w-full py-3.5 bg-slate-950 hover:bg-slate-800 text-white rounded-2xl font-black text-xs uppercase tracking-wider transition-all shadow-md"
+              >
+                TUTUP & LIHAT STATUS
+              </button>
+            </div>
+          </div>
+        )}
       </motion.div>
     </motion.div>
   );
