@@ -51,7 +51,8 @@ import {
   Eye,
   Paperclip,
   Check,
-  CheckSquare
+  CheckSquare,
+  Download
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import Markdown from 'react-markdown';
@@ -1423,108 +1424,49 @@ function ServiceDetailModal({ service, onClose, theme }: { service: any, onClose
                             )}
                           </div>
 
-                          {/* 1. Ketentuan Model (Single full-width column layout like Informasi Detail) */}
+                          {/* 1. Syarat & Kelengkapan Dokumen List */}
                           <section className="space-y-4">
                              <h5 className="text-[11px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 px-1">
-                               <Info className="w-4 h-4" /> Ketentuan & Persyaratan Umum
-                             </h5>
-                             <div className="bg-slate-50 p-6 sm:p-8 rounded-[2.5rem] border border-slate-100 text-slate-700 leading-relaxed font-medium">
-                                {jenis.ketentuan && jenis.ketentuan.length > 0 ? (
-                                  <ul className="space-y-4 list-none">
-                                    {jenis.ketentuan.map((k, j) => (
-                                      <li key={j} className="flex gap-4">
-                                         <CheckCircle2 className={cn("w-5 h-5 shrink-0 mt-0.5", theme.text)} />
-                                         <span className="text-sm text-slate-600 font-medium leading-relaxed">{k}</span>
-                                      </li>
-                                    ))}
-                                  </ul>
-                                ) : (
-                                  <p className="text-sm text-slate-400 italic">Tidak ada ketentuan khusus.</p>
-                                )}
-                             </div>
-                          </section>
-
-                          {/* 2. Kelengkapan Dokumen & Upload (Interactive cards matching spacing of Informasi Detail) */}
-                          <section className="space-y-4">
-                             <h5 className="text-[11px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 px-1">
-                               <FileText className="w-4 h-4" /> Kelengkapan Dokumen & Unggah Digital
+                               <FileText className="w-4 h-4" /> Syarat & Kelengkapan Dokumen
                              </h5>
                              <div className="space-y-3">
                                 {jenis.dokumen && jenis.dokumen.length > 0 ? (
-                                  jenis.dokumen.map((docName: string, docIdx: number) => {
-                                    const fileKey = `${i}-${docIdx}`;
-                                    const file = uploadedFiles[fileKey];
-
+                                  jenis.dokumen.map((rawDoc: any, docIdx: number) => {
+                                    const docItem = typeof rawDoc === 'string' ? { name: rawDoc, formatAjuan: null } : rawDoc;
                                     return (
                                       <div 
                                         key={docIdx} 
-                                        className={cn(
-                                          "border rounded-3xl p-5 sm:p-6 transition-all flex flex-col md:flex-row md:items-center justify-between gap-4",
-                                          file 
-                                            ? "bg-emerald-500/[0.02] border-emerald-500/20 hover:border-emerald-500/30" 
-                                            : "bg-white border-slate-100 hover:border-slate-200 hover:shadow-md hover:shadow-slate-100"
-                                        )}
+                                        className="bg-white border border-slate-100 rounded-3xl p-5 sm:p-6 flex flex-col md:flex-row md:items-center justify-between gap-4"
                                       >
-                                         <div className="flex items-start gap-4">
-                                            <div className={cn(
-                                              "w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-sm transition-colors",
-                                              file ? "bg-emerald-500/10 text-emerald-600" : "bg-slate-50 text-slate-400"
-                                            )}>
-                                               {file ? <Check className="w-5 h-5 stroke-[3]" /> : <Paperclip className="w-5 h-5" />}
+                                         <div className="flex items-start gap-4 flex-1">
+                                            <div className="w-12 h-12 bg-slate-50 text-slate-400 rounded-2xl flex items-center justify-center shrink-0 shadow-sm">
+                                               <FileText className="w-5 h-5" />
                                             </div>
                                             <div className="space-y-1 bg-transparent p-0 rounded-none">
-                                               <h6 className="font-bold text-slate-800 text-sm leading-snug">{docName}</h6>
-                                               <p className="text-xs text-slate-400 font-medium">Format: PDF/Gambar hasil scan asli (Maks. 5MB)</p>
+                                               <h6 className="font-bold text-slate-800 text-sm leading-snug">{docItem.name}</h6>
+                                               <p className="text-xs text-slate-400 font-medium">Syarat Dokumen Wajib</p>
                                             </div>
                                          </div>
-
-                                         <div className="flex items-center gap-3 self-end md:self-auto shrink-0 relative z-10">
-                                            {file ? (
-                                               <div className="flex items-center gap-2 bg-white/80 p-1.5 rounded-xl border border-slate-100 shadow-sm animate-in zoom-in-95 duration-150">
-                                                  <div className="px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-700 text-[10px] font-black uppercase tracking-widest flex items-center gap-1">
-                                                     <Check className="w-3 h-3 stroke-[3]" /> Terunggah
-                                                  </div>
-                                                  <div className="max-w-[120px] sm:max-w-[180px] truncate text-xs text-slate-600 font-bold pl-1">
-                                                     {file.name}
-                                                  </div>
-                                                  <span className="text-[10px] text-slate-400 font-mono font-bold">
-                                                     {file.size}
-                                                  </span>
-
-                                                  <div className="h-4 w-[1px] bg-slate-200 mx-1" />
-
-                                                  <button 
-                                                    onClick={() => setPreviewingFile(file)}
-                                                    className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-blue-600 transition-colors"
-                                                    title="Pratinjau File"
-                                                  >
-                                                     <Eye className="w-4 h-4" />
-                                                  </button>
-                                                  <button 
-                                                    onClick={() => handleRemoveFile(fileKey)}
-                                                    className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-red-500 transition-colors"
-                                                    title="Hapus File"
-                                                  >
-                                                     <Trash className="w-4 h-4" />
-                                                  </button>
-                                               </div>
-                                            ) : (
-                                               <button 
-                                                 onClick={() => document.getElementById(`file-input-${fileKey}`)?.click()}
-                                                 className="flex items-center gap-2 px-5 py-2.5 bg-slate-50 border border-slate-200 hover:border-blue-500 hover:bg-blue-50/50 rounded-2xl text-xs font-black text-slate-600 hover:text-blue-600 transition-all cursor-pointer shadow-sm group"
-                                               >
-                                                  <Upload className="w-3.5 h-3.5 transform group-hover:-translate-y-0.5 transition-transform" />
-                                                  <span>UNGGAH BERKAS</span>
-                                                  <input 
-                                                    id={`file-input-${fileKey}`}
-                                                    type="file" 
-                                                    accept=".pdf,image/*" 
-                                                    className="hidden" 
-                                                    onChange={(e) => handleFileUpload(e, fileKey)}
-                                                  />
-                                               </button>
-                                            )}
-                                         </div>
+                                         {docItem.formatAjuan && (
+                                            <div className="flex items-center self-start md:self-auto shrink-0">
+                                              <button
+                                                onClick={() => {
+                                                  const url = (docItem.formatAjuan.file && docItem.formatAjuan.file instanceof File) 
+                                                    ? URL.createObjectURL(docItem.formatAjuan.file) 
+                                                    : '#';
+                                                  const a = document.createElement('a');
+                                                  a.href = url;
+                                                  a.download = docItem.formatAjuan.name || `Format_${docItem.name}.docx`;
+                                                  a.click();
+                                                  if(url !== '#') URL.revokeObjectURL(url);
+                                                }}
+                                                className="flex items-center gap-2 px-5 py-2.5 bg-blue-50 border border-blue-100 text-blue-600 rounded-2xl text-xs font-bold hover:bg-blue-100 transition-colors group cursor-pointer shadow-sm"
+                                              >
+                                                <Download className="w-3.5 h-3.5 transform group-hover:-translate-y-0.5 transition-transform" />
+                                                <span>UNDUH FORMAT</span>
+                                              </button>
+                                            </div>
+                                         )}
                                       </div>
                                     );
                                   })
@@ -1533,36 +1475,6 @@ function ServiceDetailModal({ service, onClose, theme }: { service: any, onClose
                                 )}
                              </div>
                           </section>
-
-                          {/* Dynamic Completion Banner */}
-                          <div className="bg-slate-50 rounded-3xl p-6 border border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4 mt-8">
-                             <div className="flex-1 w-full">
-                                <div className="flex justify-between items-center mb-2">
-                                   <span className="text-xs font-black text-slate-500 uppercase tracking-wider">Metrik Status Berkas</span>
-                                   <span className={cn("text-xs font-black", theme.text)}>{uploadedCount} dari {totalDocs} Dokumen Terpenuhi ({progressPercent}%)</span>
-                                </div>
-                                <div className="w-full h-2.5 bg-slate-200/60 rounded-full overflow-hidden">
-                                   <motion.div 
-                                     className={cn("h-full rounded-full", theme.bg)} 
-                                     initial={{ width: 0 }}
-                                     animate={{ width: `${progressPercent}%` }}
-                                     transition={{ duration: 0.5, ease: "easeOut" }}
-                                   />
-                                </div>
-                             </div>
-                             {isAllUploaded ? (
-                                <button 
-                                  onClick={() => setShowSubmitSuccess(true)}
-                                  className={cn("w-full sm:w-auto px-6 py-3 rounded-2xl text-white font-black text-xs uppercase tracking-wider shadow-lg flex items-center justify-center gap-2", theme.bg, "hover:opacity-95 transition-all shadow-blue-500/10 hover:shadow-xl")}
-                                >
-                                  <CheckSquare className="w-4 h-4" /> Ajukan Dokumen
-                                </button>
-                             ) : (
-                                <div className="w-full sm:w-auto px-5 py-3 rounded-2xl bg-slate-100 text-slate-400 font-bold text-xs text-center border border-slate-200/50 shrink-0">
-                                  Harap lengkapi seluruh dokumen di atas
-                                </div>
-                             )}
-                          </div>
                        </div>
                      );
                    })}
@@ -1809,11 +1721,6 @@ function LayananView({ content, onOpenSKM }: { content: any, onOpenSKM: () => vo
             {
               title: "Persyaratan Dokumen",
               description: "Dokumen yang wajib disiapkan dan dilampirkan oleh pemohon.",
-              ketentuan: [
-                "Surat ditujukan kepada Rektor Universitas Tidar",
-                "Sesuai kebutuhan organisasi dan formasi yang tersedia",
-                "Lulus asesmen internal Universitas Tidar"
-              ],
               dokumen: [
                 "Surat permohonan alih tugas/mutasi",
                 "Surat lamaran alih tugas/mutasi",

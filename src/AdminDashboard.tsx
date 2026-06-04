@@ -5,7 +5,7 @@ import { cn } from './lib/utils';
 import { signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
 import { doc, getDoc, setDoc, onSnapshot, serverTimestamp, collection, query, orderBy } from 'firebase/firestore';
 import { PORTAL_CONTENT } from './data/portalData';
-import { Plus, Trash, ArrowUp, ArrowDown, ExternalLink, GripVertical, Scale, BookOpen, FileSignature, Settings, Users, Search, ArrowLeft, Save, CheckCircle2, Activity, TrendingUp, FileText, LogOut, Lock as LockIcon, X } from 'lucide-react';
+import { Plus, Trash, ArrowUp, ArrowDown, ExternalLink, GripVertical, Scale, BookOpen, FileSignature, Settings, Users, Search, ArrowLeft, Save, CheckCircle2, Activity, TrendingUp, FileText, LogOut, Lock as LockIcon, X, Upload } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -260,11 +260,6 @@ function PanduanEditor({ services, settings }: { services: any[], settings: any 
         {
           title: "Kenaikan Pangkat Reguler",
           description: "Bagi PNS yang tidak menduduki jabatan struktural atau fungsional tertentu.",
-          ketentuan: [
-            "Sekurang-kurangnya telah 4 (empat) tahun dalam pangkat terakhir",
-            "Setiap unsur penilaian prestasi kerja sekurang-kurangnya bernilai baik dalam 2 (dua) tahun terakhir",
-            "Pindah golongan II ke III atau III ke IV wajib lulus Ujian Dinas (Udin)"
-          ],
           dokumen: [
             "Penilaian Prestasi Kerja 2 (dua) tahun terakhir",
             "Surat Tanda Lulus Ujian Dinas (jika pindah golongan)",
@@ -275,10 +270,6 @@ function PanduanEditor({ services, settings }: { services: any[], settings: any 
         {
           title: "Kenaikan Pangkat Pilihan (Struktural)",
           description: "Bagi pejabat JPT Pratama, Administrator, dan Pengawas.",
-          ketentuan: [
-            "Telah 1 (satu) tahun dalam pangkat terakhir dan 1 tahun dalam jabatan",
-            "Unsur penilaian prestasi kerja bernilai baik dalam 2 (dua) tahun terakhir"
-          ],
           dokumen: [
             "Penilaian Prestasi Kerja 2 (dua) tahun terakhir"
           ]
@@ -286,11 +277,6 @@ function PanduanEditor({ services, settings }: { services: any[], settings: any 
         {
           title: "Kenaikan Pangkat Pilihan (Fungsional)",
           description: "Bagi pejabat fungsional tertentu.",
-          ketentuan: [
-            "Sekurang-kurangnya telah 2 (dua) tahun dalam pangkat terakhir",
-            "Telah memenuhi angka kredit yang ditentukan",
-            "Unsur penilaian prestasi kerja bernilai baik dalam 2 (dua) tahun terakhir"
-          ],
           dokumen: [
             "SK Penetapan Angka Kredit (PAK) terakhir",
             "Penilaian Prestasi Kerja 2 (dua) tahun terakhir"
@@ -326,11 +312,6 @@ function PanduanEditor({ services, settings }: { services: any[], settings: any 
         {
           title: "Persyaratan Dokumen",
           description: "Dokumen yang wajib disiapkan dan dilampirkan oleh pemohon.",
-          ketentuan: [
-            "Surat ditujukan kepada Rektor Universitas Tidar",
-            "Sesuai kebutuhan organisasi dan formasi yang tersedia",
-            "Lulus asesmen internal Universitas Tidar"
-          ],
           dokumen: [
             "Surat permohonan alih tugas/mutasi",
             "Surat lamaran alih tugas/mutasi",
@@ -653,7 +634,7 @@ function PanduanEditor({ services, settings }: { services: any[], settings: any 
                 <FileSignature className="w-4 h-4 text-slate-400" /> Jenis, Syarat & Kelengkapan Dokumen
              </h3>
              <button 
-               onClick={() => setDetail({...detail, jenisKenaikanPangkat: [...(detail.jenisKenaikanPangkat || []), {title: '', description: '', ketentuan: [''], dokumen: ['']}]})} 
+               onClick={() => setDetail({...detail, jenisKenaikanPangkat: [...(detail.jenisKenaikanPangkat || []), {title: '', description: '', dokumen: ['']}]})} 
                className="text-xs font-black px-4 py-2 bg-blue-600 text-white rounded-xl shadow-lg shadow-blue-600/10 hover:bg-blue-700 transition-all"
              >
                + Tambah Sub-Kategori / Jenis
@@ -703,82 +684,102 @@ function PanduanEditor({ services, settings }: { services: any[], settings: any 
                         />
                       </div>
 
-                      <div className="space-y-3">
-                        <p className="text-[10px] font-black text-slate-400 uppercase">Ketentuan & Kriteria:</p>
-                        <div className="space-y-2">
-                          {j.ketentuan?.map((k: string, kIdx: number) => (
-                            <div key={kIdx} className="flex gap-2">
-                              <input 
-                                value={k} 
-                                onChange={e => {
-                                  const copy = [...detail.jenisKenaikanPangkat];
-                                  const ket = [...copy[idx].ketentuan];
-                                  ket[kIdx] = e.target.value;
-                                  copy[idx] = {...copy[idx], ketentuan: ket};
-                                  setDetail({...detail, jenisKenaikanPangkat: copy});
-                                }} 
-                                className="flex-1 bg-white border border-slate-100 rounded-xl px-3 py-2 text-xs" 
-                                placeholder="Telah 4 tahun dalam pangkat..."
-                              />
-                              <button 
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if(window.confirm('Yakin ingin menghapus ketentuan ini?')) {
-                                    const copy = [...detail.jenisKenaikanPangkat];
-                                    copy[idx] = {...copy[idx], ketentuan: copy[idx].ketentuan.filter((_:any,i:number)=>i!==kIdx)};
-                                    setDetail({...detail, jenisKenaikanPangkat: copy});
-                                  }
-                              }}><Trash className="w-3 h-3 text-slate-300" /></button>
-                            </div>
-                          ))}
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <p className="text-[10px] font-black text-slate-400 uppercase">Kelengkapan Dokumen:</p>
+                        </div>
+                        <div className="grid grid-cols-1 gap-3">
+                          {j.dokumen?.map((d: any, dIdx: number) => {
+                            const docItem = typeof d === 'string' ? { name: d, formatAjuan: null } : d;
+                            return (
+                              <div key={dIdx} className="flex flex-col gap-2 p-3 bg-slate-50 border border-slate-100 rounded-xl relative group">
+                                <div className="flex gap-2">
+                                  <input 
+                                    value={docItem.name} 
+                                    onChange={e => {
+                                      const copy = [...detail.jenisKenaikanPangkat];
+                                      const docs = [...copy[idx].dokumen];
+                                      docs[dIdx] = { ...docItem, name: e.target.value };
+                                      copy[idx] = {...copy[idx], dokumen: docs};
+                                      setDetail({...detail, jenisKenaikanPangkat: copy});
+                                    }} 
+                                    className="flex-1 bg-white border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 rounded-lg px-3 py-2 text-xs transition-all" 
+                                    placeholder="Nama dokumen kelengkapan..."
+                                  />
+                                  <button 
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if(window.confirm('Yakin ingin menghapus dokumen kelengkapan ini?')) {
+                                        const copy = [...detail.jenisKenaikanPangkat];
+                                        copy[idx] = {...copy[idx], dokumen: copy[idx].dokumen.filter((_:any,i:number)=>i!==dIdx)};
+                                        setDetail({...detail, jenisKenaikanPangkat: copy});
+                                      }
+                                  }}
+                                  className="p-2 bg-white border border-slate-200 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 hover:border-red-100 transition-all shrink-0"
+                                  >
+                                    <Trash className="w-4 h-4" />
+                                  </button>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  {docItem.formatAjuan ? (
+                                    <div className="flex items-center justify-between p-2 flex-1 bg-white border border-slate-200 rounded-lg">
+                                      <div className="flex items-center gap-2 overflow-hidden">
+                                        <FileText className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                                        <span className="text-[10px] font-medium text-slate-700 truncate">{docItem.formatAjuan.name || 'Format_Ajuan.docx'}</span>
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          if(window.confirm('Hapus format dokumen ini?')) {
+                                            const copy = [...detail.jenisKenaikanPangkat];
+                                            const docs = [...copy[idx].dokumen];
+                                            docs[dIdx] = { ...docItem, formatAjuan: null };
+                                            copy[idx] = {...copy[idx], dokumen: docs};
+                                            setDetail({...detail, jenisKenaikanPangkat: copy});
+                                          }
+                                        }}
+                                        className="p-1 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded transition-colors shrink-0"
+                                      >
+                                        <Trash className="w-3.5 h-3.5" />
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <label className="flex flex-1 items-center justify-center gap-2 py-2 bg-white border border-dashed border-slate-200 hover:border-blue-400 hover:bg-blue-50 cursor-pointer rounded-lg transition-all group/upload">
+                                      <Upload className="w-3 h-3 text-slate-400 group-hover/upload:text-blue-500 transition-colors" />
+                                      <span className="text-[10px] font-bold text-slate-400 group-hover/upload:text-blue-600 transition-colors">Unggah Format Template (Opsional)</span>
+                                      <input 
+                                        type="file" 
+                                        accept=".doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" 
+                                        className="hidden"
+                                        onChange={(e) => {
+                                          const file = e.target.files?.[0];
+                                          if (file) {
+                                            const copy = [...detail.jenisKenaikanPangkat];
+                                            const docs = [...copy[idx].dokumen];
+                                            docs[dIdx] = { ...docItem, formatAjuan: { name: file.name, file: file } };
+                                            copy[idx] = {...copy[idx], dokumen: docs};
+                                            setDetail({...detail, jenisKenaikanPangkat: copy});
+                                          }
+                                        }}
+                                      />
+                                    </label>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
                           <button 
                             onClick={() => {
                               const copy = [...detail.jenisKenaikanPangkat];
-                              copy[idx] = {...copy[idx], ketentuan: [...(copy[idx].ketentuan || []), '']};
+                              copy[idx] = {...copy[idx], dokumen: [...(copy[idx].dokumen || []), { name: '', formatAjuan: null }]};
                               setDetail({...detail, jenisKenaikanPangkat: copy});
                             }} 
-                            className="text-[10px] text-blue-600 font-black">+ Tambah Ketentuan</button>
+                            className="bg-white border border-dashed border-slate-300 hover:border-blue-400 text-slate-500 hover:text-blue-600 rounded-xl py-3 text-[10px] uppercase tracking-wider font-black transition-all flex items-center justify-center gap-2">
+                            <Plus className="w-3.5 h-3.5" /> Tambah Dokumen
+                          </button>
                         </div>
-                      </div>
-                    </div>
-
-                    <div className="space-y-4">
-                      <p className="text-[10px] font-black text-slate-400 uppercase">Kelengkapan Dokumen:</p>
-                      <div className="grid grid-cols-1 gap-2">
-                        {j.dokumen?.map((d: string, dIdx: number) => (
-                          <div key={dIdx} className="flex gap-2">
-                            <input 
-                              value={d} 
-                              onChange={e => {
-                                 const copy = [...detail.jenisKenaikanPangkat];
-                                 const docs = [...copy[idx].dokumen];
-                                 docs[dIdx] = e.target.value;
-                                 copy[idx] = {...copy[idx], dokumen: docs};
-                                 setDetail({...detail, jenisKenaikanPangkat: copy});
-                              }} 
-                              className="flex-1 bg-white border border-slate-100 rounded-xl px-4 py-2 text-xs" 
-                              placeholder="FC SK Pangkat / PAK / Ijazah..."
-                            />
-                            <button 
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if(window.confirm('Yakin ingin menghapus dokumen kelengkapan ini?')) {
-                                  const copy = [...detail.jenisKenaikanPangkat];
-                                  copy[idx] = {...copy[idx], dokumen: copy[idx].dokumen.filter((_:any,i:number)=>i!==dIdx)};
-                                  setDetail({...detail, jenisKenaikanPangkat: copy});
-                                }
-                            }}><Trash className="w-3 h-3 text-slate-300" /></button>
-                          </div>
-                        ))}
-                        <button 
-                          onClick={() => {
-                            const copy = [...detail.jenisKenaikanPangkat];
-                            copy[idx] = {...copy[idx], dokumen: [...(copy[idx].dokumen || []), '']};
-                            setDetail({...detail, jenisKenaikanPangkat: copy});
-                          }} 
-                          className="text-[10px] text-blue-600 font-black">+ Tambah Dokumen</button>
                       </div>
                     </div>
                   </div>
